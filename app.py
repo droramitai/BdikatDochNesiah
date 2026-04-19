@@ -21,7 +21,9 @@ st.set_page_config(
 
 # ─── password gate ───────────────────────────────────────────────────────────
 
-APP_PASSWORD = "Elul2026"
+import os
+APP_PASSWORD = os.environ.get("APP_PASSWORD", "Elul2026")
+
 
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
@@ -61,7 +63,7 @@ st.markdown("""
 # ─── header ──────────────────────────────────────────────────────────────────
 
 st.title("🚗 ניתוח דוחות איתוראן")
-st.markdown("**הפרדת שעות פריקת מכולות / הסעות עובדים לפי דוח הנעה וכיבוי**")
+st.markdown("**הפרדה בין שעות עבודה בשטח לבין שעות נסיעה**")
 st.divider()
 
 # ─── sidebar – parameters ────────────────────────────────────────────────────
