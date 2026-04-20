@@ -211,12 +211,32 @@ with col_f1:
         key="ituran_file",
     )
 with col_f2:
-    uploaded_vacation = st.file_uploader(
-        "🗓️ ימי חופשה (אופציונלי)",
-        type=["xlsx", "xls"],
-        help="עמודה A: תאריכים החל משורה 2",
-        key="vacation_file",
+    st.markdown("**🗓️ ימי חופשה**")
+    if "vacation_dates_list" not in st.session_state:
+        st.session_state.vacation_dates_list = []
+
+    pick_col, btn_col = st.columns([3, 1])
+    new_vac_date = pick_col.date_input(
+        "בחר תאריך חופשה", label_visibility="collapsed",
+        key="vac_date_picker"
     )
+    if btn_col.button("➕ הוסף"):
+        if new_vac_date not in st.session_state.vacation_dates_list:
+            st.session_state.vacation_dates_list.append(new_vac_date)
+            st.rerun()
+
+    if st.session_state.vacation_dates_list:
+        for i, d in enumerate(sorted(st.session_state.vacation_dates_list)):
+            dc, xc = st.columns([5, 1])
+            dc.caption(d.strftime("%d/%m/%Y"))
+            if xc.button("✕", key=f"rm_vac_{i}"):
+                st.session_state.vacation_dates_list.remove(d)
+                st.rerun()
+        if st.button("🗑️ נקה הכל", key="clear_vac"):
+            st.session_state.vacation_dates_list = []
+            st.rerun()
+    else:
+        st.caption("לא נבחרו ימי חופשה")
 
 btn_analyze = st.button(
     "🔍 בצע ניתוח",
@@ -261,9 +281,7 @@ st.divider()
 
 # ─── build special-date sets ─────────────────────────────────────────────────
 
-vacation_dates: frozenset = frozenset()
-if uploaded_vacation is not None:
-    vacation_dates = parse_vacation_file(uploaded_vacation)
+vacation_dates: frozenset = frozenset(st.session_state.get("vacation_dates_list", []))
 
 # Collect years present in the data
 all_dates = [s["date"] for s in stops] + [d["date"] for d in drives]

@@ -285,6 +285,7 @@ def set_col(ws, col, header, width):
 # ─── sheet writers ───────────────────────────────────────────────────────────
 
 def write_summary_sheet(wb, summary: dict):
+    from openpyxl.utils import get_column_letter
     ws = wb.active
     ws.title = "סיכום"
     ws.sheet_view.rightToLeft = True
@@ -304,6 +305,7 @@ def write_summary_sheet(wb, summary: dict):
         set_col(ws, col, header, width)
 
     sorted_keys = sorted(summary.keys(), key=lambda k: (k[1], k[0]))
+    last_data_row = 1
     for r, key in enumerate(sorted_keys, 2):
         driver, dt = key
         d = summary[key]
@@ -323,6 +325,28 @@ def write_summary_sheet(wb, summary: dict):
                 style_body(cell, FILL_ANOMALY)
             else:
                 style_body(cell, fill)
+        last_data_row = r
+
+    # ── SUM totals row ──
+    if last_data_row >= 2:
+        total_row = last_data_row + 1
+        # Label in date & driver columns
+        lbl = ws.cell(row=total_row, column=6, value='סה"כ')
+        lbl.font      = Font(bold=True, color="FFFFFF", name="Arial")
+        lbl.fill      = HDR_FILL
+        lbl.alignment = CENTER
+        ws.cell(row=total_row, column=7, value="").fill = HDR_FILL
+        # SUM formulas for numeric columns 1–5
+        for col in range(1, 6):
+            letter = get_column_letter(col)
+            cell = ws.cell(
+                row=total_row, column=col,
+                value=f"=SUM({letter}2:{letter}{last_data_row})"
+            )
+            cell.font      = Font(bold=True, color="FFFFFF", name="Arial")
+            cell.fill      = HDR_FILL
+            cell.alignment = CENTER
+            cell.number_format = "0.00"
 
 
 def write_detail_sheet(wb, stops: list[dict], drives: list[dict]):
@@ -369,6 +393,26 @@ def write_detail_sheet(wb, stops: list[dict], drives: list[dict]):
         for col, val in enumerate(row_data, 1):
             style_body(ws.cell(row=r, column=col, value=val), fill)
         r += 1
+
+    # ── SUM totals row ──
+    if r > 2:
+        last_data_row = r - 1
+        total_row = r
+        # Label
+        lbl = ws.cell(row=total_row, column=7, value='סה"כ')
+        lbl.font      = Font(bold=True, color="FFFFFF", name="Arial")
+        lbl.fill      = HDR_FILL
+        lbl.alignment = CENTER
+        # SUM for minutes column (col 3)
+        cell = ws.cell(row=total_row, column=3,
+                       value=f"=SUM(C2:C{last_data_row})")
+        cell.font      = Font(bold=True, color="FFFFFF", name="Arial")
+        cell.fill      = HDR_FILL
+        cell.alignment = CENTER
+        # Fill remaining label cells in total row
+        for col in [1, 2, 4, 5, 6]:
+            c = ws.cell(row=total_row, column=col, value="")
+            c.fill = HDR_FILL
 
 
 def write_anomaly_sheet(wb, stops: list[dict], drives: list[dict],
