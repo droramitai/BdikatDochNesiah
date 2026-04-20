@@ -171,6 +171,7 @@ def get_special_label(
     full_holidays: frozenset,
     eve_holidays: frozenset,
     friday_end_h: int,
+    friday_is_workday: bool = False,
 ) -> str | None:
     """
     Returns a special label if this date/time falls in a non-work period,
@@ -182,17 +183,22 @@ def get_special_label(
 
     weekday = item_date.weekday()  # 0=Mon … 4=Fri, 5=Sat, 6=Sun
 
-    # Saturday (weekday 5) → always סוף שבוע
+    # Saturday → always סוף שבוע
     if weekday == 5:
         return "סוף שבוע"
 
-    # Full holiday (whole day off)
+    # Full holiday
     if item_date in full_holidays:
         return "חג"
 
-    # Friday after cutoff hour OR holiday eve after cutoff hour
     is_friday = (weekday == 4)
     is_eve    = (item_date in eve_holidays)
+
+    # Friday: if not a work day → entire day is סוף שבוע
+    if is_friday and not friday_is_workday:
+        return "סוף שבוע"
+
+    # Friday/eve after cutoff hour
     if (is_friday or is_eve) and item_start.hour >= friday_end_h:
         return "סוף שבוע" if is_friday else "חג"
 
@@ -230,7 +236,8 @@ with st.sidebar:
     st.caption(f"חלון עבודה: {work_start:02d}:00–{work_end:02d}:00  |  פריקה ≥ {h}ש' {m:02d}′  |  "
                f"סיום שישי: {friday_end:02d}:00  |  קיזוז: {commute_deduction}′ הלוך+חזור")
 
-    include_holidays = st.checkbox("כלול חגי ישראל אוטומטית", value=True)
+    include_holidays  = st.checkbox("כלול חגי ישראל אוטומטית", value=True)
+    friday_is_workday = st.checkbox("שישי הוא יום עבודה (עד שעת הסיום)", value=False)
 
     st.divider()
     st.markdown("**🗓️ ימי חופשה**")
@@ -352,7 +359,7 @@ SKIP_LABELS = {"חופשה", "חג", "סוף שבוע"}
 def special_label(item_date, item_start):
     return get_special_label(
         item_date, item_start,
-        vacation_dates, full_holidays, eve_holidays, friday_end
+        vacation_dates, full_holidays, eve_holidays, friday_end, friday_is_workday
     )
 
 HEBREW_DAYS = {0: "שני", 1: "שלישי", 2: "רביעי", 3: "חמישי", 4: "שישי", 5: "שבת", 6: "ראשון"}
@@ -542,10 +549,14 @@ for row in detail_rows:
     if not day_map_s[key]["סוג יום"]:
         day_map_s[key]["סוג יום"] = "יום עבודה"
 
-summary_rows = sorted(day_map_s.values(), key=lambda x: x["_date_obj"])
-# סדר RTL: שם עובד ותאריך בימין (= אחרון ברשימה בתצוגת LTR)
+# רק ימי עבודה בטבלת הסיכום
+summary_rows = sorted(
+    [r for r in day_map_s.values() if r["סוג יום"] == "יום עבודה"],
+    key=lambda x: x["_date_obj"]
+)
 SUMMARY_COLS = ["סוג יום", "נסיעה נטו (ש')", "עבודה (ש')", "יום", "תאריך", "שם עובד"]
-df_day = pd.DataFrame(summary_rows)[SUMMARY_COLS]
+df_day = (pd.DataFrame(summary_rows)[SUMMARY_COLS]
+          if summary_rows else pd.DataFrame(columns=SUMMARY_COLS))
 
 def highlight_day(row):
     color = ROW_COLORS.get(row["סוג יום"], "")
@@ -569,9 +580,10 @@ with st.expander("📋 פירוט מלא נסיעות ועצירות", expanded=
     all_drivers = sorted(set(r["שם עובד"] for r in detail_rows))
     all_days    = ["ראשון","שני","שלישי","רביעי","חמישי","שישי","שבת"]
 
-    sel_labels  = fc1.multiselect("סיווג",  all_labels,  default=all_labels,  key="flt_lbl")
-    sel_drivers = fc2.multiselect("עובד",   all_drivers, default=all_drivers, key="flt_drv")
-    sel_days    = fc3.multiselect("יום",    all_days,    default=all_days,    key="flt_day")
+    work_labels = [l for l in all_labels if l not in SKIP_LABELS]
+    sel_labels  = fc1.multiselect("סיווג",  all_labels,  default=work_labels, key="flt_lbl")
+    sel_drivers = fc2.multiselect("עובד",   all_drivers, default=all_drivers,  key="flt_drv")
+    sel_days    = fc3.multiselect("יום",    all_days,    default=all_days,     key="flt_day")
 
     filtered = [r for r in detail_rows
                 if r["סיווג"]   in sel_labels
@@ -589,15 +601,12 @@ with st.expander("📋 פירוט מלא נסיעות ועצירות", expanded=
     filtered.append(ftotal)
 
     df_detail = pd.DataFrame(filtered)[DETAIL_COLS]
-    # fit-content width, aligned right (empty space on left)
-    st.markdown('<div style="display:flex; justify-content:flex-end;">', unsafe_allow_html=True)
     st.dataframe(
         df_detail.style
                  .apply(highlight_detail, axis=1)
                  .format({"משך (ש')": "{:.2f}", "קיזוז (ש')": "{:.2f}", "נטו (ש')": "{:.2f}"}),
-        use_container_width=False, hide_index=True,
+        use_container_width=True, hide_index=True,
     )
-    st.markdown('</div>', unsafe_allow_html=True)
     st.caption(
         "🔵 כחול=עבודה  🟢 ירוק=נסיעה/עצירת ביניים  🟡 צהוב=חניה/שבת  "
         "🔴 אדום=חריג  🟣 סגול=סוף שבוע/חג  🟩 ירוק בהיר=חופשה"
