@@ -52,6 +52,13 @@ st.markdown("""
     section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"] > div { margin-bottom: 0 !important; }
     /* widen dataframe */
     [data-testid="stDataFrame"] { width: 100% !important; }
+    /* date picker RTL fix */
+    [data-testid="stDateInput"] { direction: ltr; }
+    [data-testid="stDateInput"] label { direction: rtl; text-align: right; width: 100%; }
+    /* file uploader compact */
+    [data-testid="stFileUploader"] { max-width: 420px; }
+    /* number inputs compact */
+    [data-testid="stNumberInput"] input { text-align: center; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -198,45 +205,44 @@ with st.sidebar:
 
     include_holidays = st.checkbox("כלול חגי ישראל אוטומטית", value=True)
 
-    st.caption("גרסה 1.3 | שלב 1")
-
-# ─── file upload + analysis button ───────────────────────────────────────────
-
-col_f1, col_f2 = st.columns(2)
-with col_f1:
-    uploaded_ituran = st.file_uploader(
-        "📂 דוח הנעה וכיבוי מאיתוראן *",
-        type=["xlsx", "xls"],
-        help="ייצא מאיתוראן Online ← דוח הנעה וכיבוי ← Excel",
-        key="ituran_file",
-    )
-with col_f2:
+    st.divider()
     st.markdown("**🗓️ ימי חופשה**")
     if "vacation_dates_list" not in st.session_state:
         st.session_state.vacation_dates_list = []
 
-    pick_col, btn_col = st.columns([3, 1])
-    new_vac_date = pick_col.date_input(
-        "בחר תאריך חופשה", label_visibility="collapsed",
-        key="vac_date_picker"
+    new_vac_date = st.date_input(
+        "בחר תאריך חופשה", key="vac_date_picker",
+        format="DD/MM/YYYY", label_visibility="collapsed"
     )
-    if btn_col.button("➕ הוסף"):
+    if st.button("➕ הוסף יום חופשה", use_container_width=True):
         if new_vac_date not in st.session_state.vacation_dates_list:
             st.session_state.vacation_dates_list.append(new_vac_date)
             st.rerun()
 
     if st.session_state.vacation_dates_list:
         for i, d in enumerate(sorted(st.session_state.vacation_dates_list)):
-            dc, xc = st.columns([5, 1])
-            dc.caption(d.strftime("%d/%m/%Y"))
-            if xc.button("✕", key=f"rm_vac_{i}"):
+            c1, c2 = st.columns([4, 1])
+            c1.caption(d.strftime("%d/%m/%Y"))
+            if c2.button("✕", key=f"rm_vac_{i}"):
                 st.session_state.vacation_dates_list.remove(d)
                 st.rerun()
-        if st.button("🗑️ נקה הכל", key="clear_vac"):
+        if st.button("🗑️ נקה הכל", use_container_width=True):
             st.session_state.vacation_dates_list = []
             st.rerun()
     else:
         st.caption("לא נבחרו ימי חופשה")
+
+    st.divider()
+    st.caption("גרסה 1.3 | שלב 1")
+
+# ─── file upload + analysis button ───────────────────────────────────────────
+
+uploaded_ituran = st.file_uploader(
+    "📂 דוח הנעה וכיבוי מאיתוראן",
+    type=["xlsx", "xls"],
+    help="ייצא מאיתוראן Online ← דוח הנעה וכיבוי ← Excel",
+    key="ituran_file",
+)
 
 btn_analyze = st.button(
     "🔍 בצע ניתוח",
@@ -281,7 +287,9 @@ st.divider()
 
 # ─── build special-date sets ─────────────────────────────────────────────────
 
-vacation_dates: frozenset = frozenset(st.session_state.get("vacation_dates_list", []))
+vacation_dates: frozenset = frozenset(
+    st.session_state.get("vacation_dates_list", [])
+)
 
 # Collect years present in the data
 all_dates = [s["date"] for s in stops] + [d["date"] for d in drives]
