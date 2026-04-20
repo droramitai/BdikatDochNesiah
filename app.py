@@ -86,15 +86,21 @@ st.markdown("""
     [data-testid="stDateInput"] label { direction: rtl; text-align: right; width: 100%; }
     /* shrink + style the calendar popup using correct baseweb selectors */
     [data-baseweb="calendar"] {
-        transform: scale(0.78) !important;
-        transform-origin: top right !important;
+        transform: scale(0.80) !important;
+        transform-origin: top left !important;
         border: 2px solid #4a90d9 !important;
         border-radius: 12px !important;
         box-shadow: 0 6px 20px rgba(0,0,0,0.25) !important;
         overflow: hidden !important;
-        margin-top: -10px !important;
+        margin-bottom: -60px !important;
     }
     [data-baseweb="popover"] {
+        overflow: visible !important;
+        left: 4px !important;
+        right: auto !important;
+    }
+    /* allow sidebar to show calendar without clipping */
+    section[data-testid="stSidebar"] > div:first-child {
         overflow: visible !important;
     }
     /* X close button */
