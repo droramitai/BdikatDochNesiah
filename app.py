@@ -58,8 +58,10 @@ components.html("""
             btn.addEventListener('mousedown', function(e) {
                 e.preventDefault();
                 e.stopPropagation();
-                // Click elsewhere to close the popover
-                doc.body.click();
+                // Escape key closes BaseUI popovers
+                var esc = new KeyboardEvent('keydown', {key:'Escape', keyCode:27, bubbles:true, cancelable:true});
+                doc.dispatchEvent(esc);
+                cal.dispatchEvent(esc);
             });
             cal.insertBefore(btn, cal.firstChild);
         });
