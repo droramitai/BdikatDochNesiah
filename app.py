@@ -210,13 +210,30 @@ with st.sidebar:
     if "vacation_dates_list" not in st.session_state:
         st.session_state.vacation_dates_list = []
 
-    new_vac_date = st.date_input(
-        "בחר תאריך חופשה", key="vac_date_picker",
-        format="DD/MM/YYYY", label_visibility="collapsed"
+    # בחירה מרובה: גרור טווח או Ctrl+לחיצה
+    picked = st.date_input(
+        "בחר תאריך/ים (טווח או יחיד)",
+        value=(),
+        format="DD/MM/YYYY",
+        key="vac_date_picker",
+        help="בחר תאריך בודד או גרור כדי לבחור טווח, ואז לחץ הוסף",
     )
-    if st.button("➕ הוסף יום חופשה", use_container_width=True):
-        if new_vac_date not in st.session_state.vacation_dates_list:
-            st.session_state.vacation_dates_list.append(new_vac_date)
+    if st.button("➕ הוסף לרשימה", use_container_width=True):
+        # picked יכול להיות date בודד, tuple של (start,end), או tuple ריק
+        if picked:
+            if isinstance(picked, tuple) and len(picked) == 2:
+                # טווח — הוסף כל יום בין start ל-end
+                from datetime import timedelta as _td
+                start_d, end_d = picked
+                cur = start_d
+                while cur <= end_d:
+                    if cur not in st.session_state.vacation_dates_list:
+                        st.session_state.vacation_dates_list.append(cur)
+                    cur += _td(days=1)
+            else:
+                d = picked[0] if isinstance(picked, tuple) else picked
+                if d not in st.session_state.vacation_dates_list:
+                    st.session_state.vacation_dates_list.append(d)
             st.rerun()
 
     if st.session_state.vacation_dates_list:
@@ -310,6 +327,8 @@ def special_label(item_date, item_start):
         item_date, item_start,
         vacation_dates, full_holidays, eve_holidays, friday_end
     )
+
+HEBREW_DAYS = {0: "שני", 1: "שלישי", 2: "רביעי", 3: "חמישי", 4: "שישי", 5: "שבת", 6: "ראשון"}
 
 # ─── classification labels & colors ──────────────────────────────────────────
 
@@ -420,10 +439,7 @@ if commute_deduction > 0:
         f"{total_deduction_h:.2f} ש' סה\"כ)"
     )
 
-# ─── detail table ─────────────────────────────────────────────────────────────
-
-st.divider()
-st.subheader("📋 פירוט נסיעות ועצירות")
+# ─── build detail rows ────────────────────────────────────────────────────────
 
 all_items = [("stop", s) for s in stops] + [("drive", d) for d in drives]
 all_items.sort(key=lambda x: x[1]["start"])
@@ -432,10 +448,7 @@ detail_rows = []
 for kind, item in all_items:
     duration_h = round(item["duration"].total_seconds() / 3600, 2)
     sp_label   = special_label(item["date"], item["start"])
-    if sp_label:
-        label = sp_label
-    else:
-        label = LABEL_MAP.get((kind, item["type"]), item["type"])
+    label      = sp_label if sp_label else LABEL_MAP.get((kind, item["type"]), item["type"])
 
     if kind == "drive":
         frm  = item.get("from_address", "") or ""
@@ -450,6 +463,7 @@ for kind, item in all_items:
     detail_rows.append({
         "שם עובד":       item["driver"],
         "תאריך":         item["date"].strftime("%d/%m/%Y"),
+        "יום":           HEBREW_DAYS[item["date"].weekday()],
         "שעת התחלה":     item["start"].strftime("%H:%M"),
         "שעת סיום":      item["end"].strftime("%H:%M"),
         "משך (ש')":      duration_h,
@@ -457,43 +471,106 @@ for kind, item in all_items:
         "נטו (ש')":      net_h,
         "סיווג":         label,
         "כתובת / מסלול": addr,
+        "_date_obj":     item["date"],   # for sorting (hidden)
     })
-
-# Total row
-total_row = {
-    "שם עובד": 'סה"כ', "תאריך": "", "שעת התחלה": "", "שעת סיום": "",
-    "משך (ש')":   round(sum(r["משך (ש')"]   for r in detail_rows), 2),
-    "קיזוז (ש')": round(sum(r["קיזוז (ש')"] for r in detail_rows), 2),
-    "נטו (ש')":   round(sum(r["נטו (ש')"]   for r in detail_rows), 2),
-    "סיווג": "", "כתובת / מסלול": "",
-}
-detail_rows.append(total_row)
 
 DETAIL_COLS = [
     "כתובת / מסלול", "נטו (ש')", "קיזוז (ש')", "משך (ש')",
-    "סיווג", "שעת סיום", "שעת התחלה", "תאריך", "שם עובד",
+    "סיווג", "שעת סיום", "שעת התחלה", "יום", "תאריך", "שם עובד",
 ]
-df_detail = pd.DataFrame(detail_rows)[DETAIL_COLS]
 
 
 def highlight_detail(row):
-    if row["שם עובד"] == 'סה"כ':
+    if row.get("שם עובד") == 'סה"כ':
         return ["font-weight: bold; background-color: #e8f0fe"] * len(row)
-    color = ROW_COLORS.get(row["סיווג"], "")
+    color = ROW_COLORS.get(row.get("סיווג", ""), "")
     return [f"background-color: {color}" if color else ""] * len(row)
 
 
+# ─── daily summary table (default view) ───────────────────────────────────────
+
+st.divider()
+st.subheader("📅 סיכום יומי")
+
+day_map_s: dict = {}
+for row in detail_rows:
+    key = (row["שם עובד"], row["תאריך"])
+    if key not in day_map_s:
+        day_map_s[key] = {
+            "שם עובד":       row["שם עובד"],
+            "תאריך":         row["תאריך"],
+            "יום":           row["יום"],
+            "עבודה (ש')":    0.0,
+            "נסיעה נטו (ש')": 0.0,
+            "סוג יום":       "",
+            "_date_obj":     row["_date_obj"],
+        }
+    lbl = row["סיווג"]
+    if lbl in SKIP_LABELS:
+        day_map_s[key]["סוג יום"] = lbl
+    elif lbl == "עבודה":
+        day_map_s[key]["עבודה (ש')"]    = round(day_map_s[key]["עבודה (ש')"]    + row["נטו (ש')"], 2)
+    elif lbl in ("נסיעה", "עצירת ביניים"):
+        day_map_s[key]["נסיעה נטו (ש')"] = round(day_map_s[key]["נסיעה נטו (ש')"] + row["נטו (ש')"], 2)
+    if not day_map_s[key]["סוג יום"]:
+        day_map_s[key]["סוג יום"] = "יום עבודה"
+
+summary_rows = sorted(day_map_s.values(), key=lambda x: x["_date_obj"])
+SUMMARY_COLS = ["שם עובד", "תאריך", "יום", "עבודה (ש')", "נסיעה נטו (ש')", "סוג יום"]
+df_day = pd.DataFrame(summary_rows)[SUMMARY_COLS]
+
+def highlight_day(row):
+    color = ROW_COLORS.get(row["סוג יום"], "")
+    if row["סוג יום"] == "יום עבודה":
+        color = "#dce8f5"
+    return [f"background-color: {color}" if color else ""] * len(row)
+
 st.dataframe(
-    df_detail.style
-             .apply(highlight_detail, axis=1)
-             .format({"משך (ש')": "{:.2f}", "קיזוז (ש')": "{:.2f}", "נטו (ש')": "{:.2f}"}),
-    use_container_width=True,
-    hide_index=True,
+    df_day.style.apply(highlight_day, axis=1)
+               .format({"עבודה (ש')": "{:.2f}", "נסיעה נטו (ש')": "{:.2f}"}),
+    use_container_width=True, hide_index=True,
 )
-st.caption(
-    "🔵 כחול=עבודה  🟢 ירוק=נסיעה/עצירת ביניים  🟡 צהוב=חניה/שבת  "
-    "🔴 אדום=חריג  🟣 סגול=סוף שבוע/חג  🟩 ירוק בהיר=חופשה"
-)
+
+# ─── detail table (collapsible) ───────────────────────────────────────────────
+
+st.divider()
+with st.expander("📋 פירוט מלא נסיעות ועצירות", expanded=False):
+    # ── filters ──
+    fc1, fc2, fc3 = st.columns(3)
+    all_labels  = sorted(set(r["סיווג"]   for r in detail_rows))
+    all_drivers = sorted(set(r["שם עובד"] for r in detail_rows))
+    all_days    = ["ראשון","שני","שלישי","רביעי","חמישי","שישי","שבת"]
+
+    sel_labels  = fc1.multiselect("סיווג",  all_labels,  default=all_labels,  key="flt_lbl")
+    sel_drivers = fc2.multiselect("עובד",   all_drivers, default=all_drivers, key="flt_drv")
+    sel_days    = fc3.multiselect("יום",    all_days,    default=all_days,    key="flt_day")
+
+    filtered = [r for r in detail_rows
+                if r["סיווג"]   in sel_labels
+                and r["שם עובד"] in sel_drivers
+                and r["יום"]     in sel_days]
+
+    # Total row for filtered set
+    ftotal = {
+        "שם עובד": 'סה"כ', "תאריך": "", "יום": "", "שעת התחלה": "", "שעת סיום": "",
+        "משך (ש')":   round(sum(r["משך (ש')"]   for r in filtered), 2),
+        "קיזוז (ש')": round(sum(r["קיזוז (ש')"] for r in filtered), 2),
+        "נטו (ש')":   round(sum(r["נטו (ש')"]   for r in filtered), 2),
+        "סיווג": "", "כתובת / מסלול": "", "_date_obj": None,
+    }
+    filtered.append(ftotal)
+
+    df_detail = pd.DataFrame(filtered)[DETAIL_COLS]
+    st.dataframe(
+        df_detail.style
+                 .apply(highlight_detail, axis=1)
+                 .format({"משך (ש')": "{:.2f}", "קיזוז (ש')": "{:.2f}", "נטו (ש')": "{:.2f}"}),
+        use_container_width=True, hide_index=True,
+    )
+    st.caption(
+        "🔵 כחול=עבודה  🟢 ירוק=נסיעה/עצירת ביניים  🟡 צהוב=חניה/שבת  "
+        "🔴 אדום=חריג  🟣 סגול=סוף שבוע/חג  🟩 ירוק בהיר=חופשה"
+    )
 
 # ─── anomalies callout ───────────────────────────────────────────────────────
 

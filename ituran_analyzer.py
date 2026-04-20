@@ -284,6 +284,9 @@ def set_col(ws, col, header, width):
 
 # ─── sheet writers ───────────────────────────────────────────────────────────
 
+HEBREW_DAYS = {0: "שני", 1: "שלישי", 2: "רביעי", 3: "חמישי", 4: "שישי", 5: "שבת", 6: "ראשון"}
+
+
 def write_summary_sheet(wb, summary: dict):
     from openpyxl.utils import get_column_letter
     ws = wb.active
@@ -291,16 +294,18 @@ def write_summary_sheet(wb, summary: dict):
     ws.sheet_view.rightToLeft = True
     ws.row_dimensions[1].height = 22
 
-    # Columns in RTL order: rightmost first (Excel col A = right side in RTL sheet)
+    # RTL order: col A appears RIGHTMOST on screen
     cols = [
-        ("שעות חריגות (לבירור)",             22),
-        ("שעות חניה/שבת (לא נספר)",          24),
-        ('סה"כ שעות עבודה',                  20),
-        ("שעות הסעות עובדים",                22),
-        ("שעות פריקת מכולות",                22),
-        ("תאריך",                             14),
-        ("שם עובד",                          18),
+        ("שם עובד",                          18),   # A – rightmost
+        ("תאריך",                             14),   # B
+        ("יום",                               10),   # C
+        ("שעות פריקת מכולות",                22),   # D
+        ("שעות הסעות עובדים",                22),   # E
+        ('סה"כ שעות עבודה',                  20),   # F
+        ("שעות חניה/שבת (לא נספר)",          24),   # G
+        ("שעות חריגות (לבירור)",             22),   # H – leftmost
     ]
+    num_cols = len(cols)
     for col, (header, width) in enumerate(cols, 1):
         set_col(ws, col, header, width)
 
@@ -314,51 +319,58 @@ def write_summary_sheet(wb, summary: dict):
         parking   = td_to_hours(d["parking"])
         anomaly   = td_to_hours(d["anomaly"])
         total     = round(unload + transport, 2)
+        day_name  = HEBREW_DAYS[dt.weekday()]
 
-        row_data  = [anomaly, parking, total, transport, unload, dt.strftime("%d/%m/%Y"), driver]
-        fill      = STRIPE if r % 2 == 0 else None
+        row_data = [driver, dt.strftime("%d/%m/%Y"), day_name,
+                    unload, transport, total, parking, anomaly]
+        fill = STRIPE if r % 2 == 0 else None
 
         for col, val in enumerate(row_data, 1):
             cell = ws.cell(row=r, column=col, value=val)
-            # Anomaly column (col 1) always red if > 0
-            if col == 1 and anomaly > 0:
+            if col == 8 and anomaly > 0:   # col H = anomaly
                 style_body(cell, FILL_ANOMALY)
             else:
                 style_body(cell, fill)
         last_data_row = r
 
-    # ── SUM totals row ──
+    # ── autofilter ──
+    ws.auto_filter.ref = f"A1:{get_column_letter(num_cols)}{last_data_row}"
+
+    # ── SUBTOTAL totals row ──
     if last_data_row >= 2:
         total_row = last_data_row + 1
-        # Label in date & driver columns
-        lbl = ws.cell(row=total_row, column=6, value='סה"כ')
-        lbl.font      = Font(bold=True, color="FFFFFF", name="Arial")
-        lbl.fill      = HDR_FILL
-        lbl.alignment = CENTER
-        ws.cell(row=total_row, column=7, value="").fill = HDR_FILL
-        # SUM formulas for numeric columns 1–5
-        for col in range(1, 6):
-            letter = get_column_letter(col)
-            cell = ws.cell(
-                row=total_row, column=col,
-                value=f"=SUM({letter}2:{letter}{last_data_row})"
-            )
+        for col in range(1, num_cols + 1):
+            cell = ws.cell(row=total_row, column=col)
             cell.font      = Font(bold=True, color="FFFFFF", name="Arial")
             cell.fill      = HDR_FILL
             cell.alignment = CENTER
-            cell.number_format = "0.00"
+        ws.cell(row=total_row, column=1, value='סה"כ')
+        # SUBTOTAL(9,…) respects filters; cols D-H (4-8) are numeric
+        for col in range(4, num_cols + 1):
+            letter = get_column_letter(col)
+            ws.cell(row=total_row, column=col,
+                    value=f"=SUBTOTAL(9,{letter}2:{letter}{last_data_row})"
+                    ).number_format = "0.00"
 
 
 def write_detail_sheet(wb, stops: list[dict], drives: list[dict]):
+    from openpyxl.utils import get_column_letter
     ws = wb.create_sheet("פירוט עצירות")
     ws.sheet_view.rightToLeft = True
     ws.row_dimensions[1].height = 22
 
+    # RTL order: col A = rightmost on screen
     cols = [
-        ("סיווג",         22), ("כתובת / מוצא ← יעד", 50), ("משך (דקות)", 14),
-        ("שעת יציאה",     12), ("שעת הגעה",  12), ("תאריך",        13),
-        ("שם עובד",       15),
+        ("שם עובד",              15),   # A
+        ("תאריך",                13),   # B
+        ("יום",                  10),   # C
+        ("שעת הגעה",             12),   # D = start
+        ("שעת יציאה",            12),   # E = end
+        ("משך (דקות)",           14),   # F
+        ("סיווג",                22),   # G
+        ("כתובת / מוצא ← יעד",  50),   # H
     ]
+    num_cols = len(cols)
     for col, (h, w) in enumerate(cols, 1):
         set_col(ws, col, h, w)
 
@@ -370,53 +382,54 @@ def write_detail_sheet(wb, stops: list[dict], drives: list[dict]):
 
     r = 2
     for kind, item in all_items:
-        mins  = int(item["duration"].total_seconds() / 60)
-        label = item["type"]
+        mins     = int(item["duration"].total_seconds() / 60)
+        label    = item["type"]
+        day_name = HEBREW_DAYS[item["date"].weekday()]
 
         if kind == "drive":
-            frm = item.get("from_address", "") or ""
-            to  = item.get("to_address",   "") or ""
+            frm  = item.get("from_address", "") or ""
+            to   = item.get("to_address",   "") or ""
             addr = f"{frm} ← {to}" if frm or to else "(נסיעה)"
         else:
             addr = item["address"]
 
         row_data = [
+            item["driver"],
+            item["date"].strftime("%d/%m/%Y"),
+            day_name,
+            item["start"].strftime("%H:%M"),
+            item["end"].strftime("%H:%M"),
+            mins,
             label,
             addr,
-            mins,
-            item["end"].strftime("%H:%M"),
-            item["start"].strftime("%H:%M"),
-            item["date"].strftime("%d/%m/%Y"),
-            item["driver"],
         ]
         fill = TYPE_FILL.get(label, None)
         for col, val in enumerate(row_data, 1):
             style_body(ws.cell(row=r, column=col, value=val), fill)
         r += 1
 
-    # ── SUM totals row ──
+    # ── autofilter ──
+    if r > 2:
+        ws.auto_filter.ref = f"A1:{get_column_letter(num_cols)}{r - 1}"
+
+    # ── SUBTOTAL totals row ──
     if r > 2:
         last_data_row = r - 1
         total_row = r
-        # Label
-        lbl = ws.cell(row=total_row, column=7, value='סה"כ')
-        lbl.font      = Font(bold=True, color="FFFFFF", name="Arial")
-        lbl.fill      = HDR_FILL
-        lbl.alignment = CENTER
-        # SUM for minutes column (col 3)
-        cell = ws.cell(row=total_row, column=3,
-                       value=f"=SUM(C2:C{last_data_row})")
-        cell.font      = Font(bold=True, color="FFFFFF", name="Arial")
-        cell.fill      = HDR_FILL
-        cell.alignment = CENTER
-        # Fill remaining label cells in total row
-        for col in [1, 2, 4, 5, 6]:
-            c = ws.cell(row=total_row, column=col, value="")
-            c.fill = HDR_FILL
+        for col in range(1, num_cols + 1):
+            cell = ws.cell(row=total_row, column=col, value="")
+            cell.font      = Font(bold=True, color="FFFFFF", name="Arial")
+            cell.fill      = HDR_FILL
+            cell.alignment = CENTER
+        ws.cell(row=total_row, column=1, value='סה"כ')
+        # SUBTOTAL(9,…) for minutes (col F = 6)
+        ws.cell(row=total_row, column=6,
+                value=f"=SUBTOTAL(9,F2:F{last_data_row})")
 
 
 def write_anomaly_sheet(wb, stops: list[dict], drives: list[dict],
                         work_start: int, work_end: int):
+    from openpyxl.utils import get_column_letter
     anomalies = [s for s in stops  if s["type"] == TYPE_ANOMALY] + \
                 [d for d in drives if d["type"] == TYPE_ANOMALY]
     if not anomalies:
@@ -426,33 +439,49 @@ def write_anomaly_sheet(wb, stops: list[dict], drives: list[dict],
     ws.sheet_view.rightToLeft = True
     ws.row_dimensions[1].height = 22
 
+    # RTL order: col A = rightmost
     cols = [
-        ("הערה", 42), ("כתובת / סוג", 36), ("משך (דקות)", 14),
-        ("שעת סיום", 13), ("שעת התחלה", 13), ("תאריך", 13), ("שם עובד", 15),
+        ("שם עובד",      15),   # A
+        ("תאריך",        13),   # B
+        ("יום",          10),   # C
+        ("שעת התחלה",    13),   # D
+        ("שעת סיום",     13),   # E
+        ("משך (דקות)",   14),   # F
+        ("כתובת / סוג",  36),   # G
+        ("הערה",         42),   # H
     ]
+    num_cols = len(cols)
     for col, (h, w) in enumerate(cols, 1):
         set_col(ws, col, h, w)
 
+    last_r = 1
     for r, item in enumerate(sorted(anomalies, key=lambda x: x["start"]), 2):
-        mins = int(item["duration"].total_seconds() / 60)
+        mins     = int(item["duration"].total_seconds() / 60)
+        day_name = HEBREW_DAYS[item["date"].weekday()]
         if "from_address" in item:
-            frm = item.get("from_address", "") or ""
-            to  = item.get("to_address",   "") or ""
+            frm  = item.get("from_address", "") or ""
+            to   = item.get("to_address",   "") or ""
             addr = f"{frm} ← {to}" if frm or to else "(נסיעה)"
         else:
             addr = item.get("address", "")
         note = anomaly_reason(item, work_start, work_end)
         row_data = [
-            note,
-            addr,
-            mins,
-            item["end"].strftime("%H:%M"),
-            item["start"].strftime("%H:%M"),
-            item["date"].strftime("%d/%m/%Y"),
             item["driver"],
+            item["date"].strftime("%d/%m/%Y"),
+            day_name,
+            item["start"].strftime("%H:%M"),
+            item["end"].strftime("%H:%M"),
+            mins,
+            addr,
+            note,
         ]
         for col, val in enumerate(row_data, 1):
             style_body(ws.cell(row=r, column=col, value=val), FILL_ANOMALY)
+        last_r = r
+
+    # ── autofilter ──
+    if last_r > 1:
+        ws.auto_filter.ref = f"A1:{get_column_letter(num_cols)}{last_r}"
 
 
 def write_params_sheet(wb, filepath: str, threshold_minutes: int,
