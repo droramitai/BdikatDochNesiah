@@ -198,7 +198,7 @@ with st.sidebar:
 
     include_holidays = st.checkbox("כלול חגי ישראל אוטומטית", value=True)
 
-    st.caption("גרסה 1.2 | שלב 1")
+    st.caption("גרסה 1.3 | שלב 1")
 
 # ─── file upload + analysis button ───────────────────────────────────────────
 
