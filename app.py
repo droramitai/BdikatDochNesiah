@@ -48,21 +48,24 @@ components.html("""
 (function() {
     function injectClose() {
         var doc = window.parent.document;
-        doc.querySelectorAll('.flatpickr-calendar.open').forEach(function(cal) {
+        doc.querySelectorAll('[data-baseweb="calendar"]').forEach(function(cal) {
             if (cal.querySelector('.fp-close-btn')) return;
+            cal.style.position = 'relative';
             var btn = doc.createElement('button');
             btn.innerHTML = '✕';
             btn.className = 'fp-close-btn';
             btn.title = 'סגור';
-            btn.addEventListener('click', function(e) {
+            btn.addEventListener('mousedown', function(e) {
+                e.preventDefault();
                 e.stopPropagation();
-                cal.classList.remove('open');
+                // Click elsewhere to close the popover
+                doc.body.click();
             });
             cal.insertBefore(btn, cal.firstChild);
         });
     }
-    window.parent.document.addEventListener('click',   function(){ setTimeout(injectClose, 120); });
-    window.parent.document.addEventListener('focusin', function(){ setTimeout(injectClose, 120); });
+    window.parent.document.addEventListener('click',   function(){ setTimeout(injectClose, 150); });
+    window.parent.document.addEventListener('focusin', function(){ setTimeout(injectClose, 150); });
 })();
 </script>
 """, height=0)
@@ -78,31 +81,36 @@ st.markdown("""
     section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"] > div { margin-bottom: 0 !important; }
     /* widen dataframe */
     [data-testid="stDataFrame"] { width: 100% !important; }
-    /* date picker RTL fix + compact */
+    /* date picker RTL fix */
     [data-testid="stDateInput"] { direction: ltr; }
     [data-testid="stDateInput"] label { direction: rtl; text-align: right; width: 100%; }
-    /* shrink + style the calendar popup */
-    .flatpickr-calendar {
-        transform: scale(0.82) !important;
-        transform-origin: top left !important;
+    /* shrink + style the calendar popup using correct baseweb selectors */
+    [data-baseweb="calendar"] {
+        transform: scale(0.78) !important;
+        transform-origin: top right !important;
         border: 2px solid #4a90d9 !important;
         border-radius: 12px !important;
         box-shadow: 0 6px 20px rgba(0,0,0,0.25) !important;
         overflow: hidden !important;
+        margin-top: -10px !important;
     }
-    /* X close button injected by JS */
+    [data-baseweb="popover"] {
+        overflow: visible !important;
+    }
+    /* X close button */
     .fp-close-btn {
         position: absolute !important;
-        top: 4px !important;
-        left: 6px !important;
+        top: 6px !important;
+        left: 8px !important;
         background: none !important;
         border: none !important;
-        font-size: 14px !important;
+        font-size: 15px !important;
         cursor: pointer !important;
         color: #999 !important;
         z-index: 9999 !important;
         padding: 0 4px !important;
         border-radius: 4px !important;
+        line-height: 1 !important;
     }
     .fp-close-btn:hover { color: #cc0000 !important; background: #fee !important; }
     /* file uploader compact */
