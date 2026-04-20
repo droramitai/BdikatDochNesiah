@@ -177,72 +177,95 @@ if commute_deduction > 0:
 # ─── summary table ───────────────────────────────────────────────────────────
 
 st.divider()
-st.subheader("📋 פירוט לפי יום")
+st.subheader("📋 פירוט נסיעות ועצירות")
 
-COL_ORDER = [
-    "חריגות (ש')",
-    "חניה/שבת (ש')",
-    'סה"כ עבודה (ש\')',
-    "הסעות נטו (ש')",
-    "קיזוז (ש')",
-    "הסעות ברוטו (ש')",
-    "פריקת מכולות (ש')",
-    "תאריך",
-    "שם עובד",
-]
+# נסיעות TYPE_TRANSPORT ראשונות ואחרונות לכל יום (לצורך קיזוז)
+from collections import defaultdict
+_day_starts = defaultdict(list)
+for d in drives:
+    if d["type"] == TYPE_TRANSPORT:
+        _day_starts[d["date"]].append(d["start"])
+day_first = {dt: min(v) for dt, v in _day_starts.items()}
+day_last  = {dt: max(v) for dt, v in _day_starts.items()}
 
-deduction_h = float(commute_deduction * 2) / 60.0  # קיזוז כולל ליום בשעות
+# צבעי רקע לפי סיווג
+ROW_COLORS = {
+    TYPE_UNLOAD:    "#dce8f5",
+    TYPE_TRANSPORT: "#e8f5e8",
+    TYPE_PARKING:   "#fafadc",
+    TYPE_ANOMALY:   "#ffe0e0",
+}
 
-rows = []
-sorted_keys = sorted(summary.keys(), key=lambda k: (k[1], k[0]))
-for (driver, dt), d in [(k, summary[k]) for k in sorted_keys]:
-    unload    = round(d["unload"].total_seconds()    / 3600, 2)
-    transport = round(d["transport"].total_seconds() / 3600, 2)
-    parking   = round(d["parking"].total_seconds()  / 3600, 2)
-    anomaly   = round(d["anomaly"].total_seconds()  / 3600, 2)
-    # קיזוז רק לימים שיש בהם נסיעות בפועל (לא רק עצירות קצרות)
-    day_deduction = round(deduction_h, 2) if dt in days_with_drives else 0.0
-    transport_net = round(max(0.0, transport - day_deduction), 2)
-    rows.append({
-        "שם עובד":               driver,
-        "תאריך":                dt.strftime("%d/%m/%Y"),
-        "פריקת מכולות (ש')":    unload,
-        "הסעות ברוטו (ש')":     transport,
-        "קיזוז (ש')":           day_deduction,
-        "הסעות נטו (ש')":       transport_net,
-        'סה"כ עבודה (ש\')':     round(unload + transport_net, 2),
-        "חניה/שבת (ש')":        parking,
-        "חריגות (ש')":          anomaly,
+# בניית שורות — שורה לכל נסיעה/עצירה
+all_items = [("stop", s) for s in stops] + [("drive", d) for d in drives]
+all_items.sort(key=lambda x: x[1]["start"])
+
+detail_rows = []
+for kind, item in all_items:
+    duration_h = round(item["duration"].total_seconds() / 3600, 2)
+
+    if kind == "drive":
+        frm  = item.get("from_address", "") or ""
+        to   = item.get("to_address",   "") or ""
+        addr = f"{frm} ← {to}" if frm or to else ""
+    else:
+        addr = item.get("address", "") or ""
+
+    # קיזוז — רק נסיעות TYPE_TRANSPORT ראשונה/אחרונה ביום
+    ded = 0.0
+    if kind == "drive" and item["type"] == TYPE_TRANSPORT and commute_deduction > 0:
+        is_first = item["start"] == day_first.get(item["date"])
+        is_last  = item["start"] == day_last.get(item["date"])
+        if is_first and is_last:          # יום עם נסיעה אחת בלבד
+            ded = round(commute_deduction * 2 / 60, 2)
+        elif is_first or is_last:
+            ded = round(commute_deduction / 60, 2)
+
+    net_h = round(max(0.0, duration_h - ded), 2)
+
+    detail_rows.append({
+        "שם עובד":       item["driver"],
+        "תאריך":         item["date"].strftime("%d/%m/%Y"),
+        "שעת התחלה":     item["start"].strftime("%H:%M"),
+        "שעת סיום":      item["end"].strftime("%H:%M"),
+        "משך (ש')":      duration_h,
+        "קיזוז (ש')":    ded,
+        "נטו (ש')":      net_h,
+        "סיווג":         item["type"],
+        "כתובת / מסלול": addr,
     })
 
 # שורת סה"כ
-numeric_keys = ["פריקת מכולות (ש')", "הסעות ברוטו (ש')", "קיזוז (ש')",
-                "הסעות נטו (ש')", 'סה"כ עבודה (ש\')', "חניה/שבת (ש')", "חריגות (ש')"]
-total_row = {"שם עובד": 'סה"כ', "תאריך": ""}
-for k in numeric_keys:
-    total_row[k] = round(sum(r[k] for r in rows), 2)
-rows.append(total_row)
+total_row = {
+    "שם עובד": 'סה"כ', "תאריך": "", "שעת התחלה": "", "שעת סיום": "",
+    "משך (ש')":   round(sum(r["משך (ש')"]   for r in detail_rows), 2),
+    "קיזוז (ש')": round(sum(r["קיזוז (ש')"] for r in detail_rows), 2),
+    "נטו (ש')":   round(sum(r["נטו (ש')"]   for r in detail_rows), 2),
+    "סיווג": "", "כתובת / מסלול": "",
+}
+detail_rows.append(total_row)
 
-df = pd.DataFrame(rows)[COL_ORDER]
+DETAIL_COLS = [
+    "כתובת / מסלול", "נטו (ש')", "קיזוז (ש')", "משך (ש')",
+    "סיווג", "שעת סיום", "שעת התחלה", "תאריך", "שם עובד",
+]
+df_detail = pd.DataFrame(detail_rows)[DETAIL_COLS]
 
 
-def highlight_anomaly(row):
+def highlight_detail(row):
     if row["שם עובד"] == 'סה"כ':
         return ["font-weight: bold; background-color: #e8f0fe"] * len(row)
-    if row["חריגות (ש')"] > 0:
-        return ["background-color: #ffe0e0"] * len(row)
-    return [""] * len(row)
+    color = ROW_COLORS.get(row["סיווג"], "")
+    return [f"background-color: {color}" if color else ""] * len(row)
 
 
-numeric_cols = ["פריקת מכולות (ש')", "הסעות ברוטו (ש')", "קיזוז (ש')",
-                "הסעות נטו (ש')", 'סה"כ עבודה (ש\')', "חניה/שבת (ש')", "חריגות (ש')"]
 st.dataframe(
-    df.style.apply(highlight_anomaly, axis=1)
-           .format({col: "{:.2f}" for col in numeric_cols}),
+    df_detail.style.apply(highlight_detail, axis=1)
+                   .format({"משך (ש')": "{:.2f}", "קיזוז (ש')": "{:.2f}", "נטו (ש')": "{:.2f}"}),
     width="stretch",
     hide_index=True,
 )
-st.caption("🔴 שורה אדומה = יש פעילות מחוץ לשעות העבודה שדורשת בירור")
+st.caption("🔴 אדום=חריג  🔵 כחול=פריקת מכולות  🟢 ירוק=נסיעה  🟡 צהוב=חניה/שבת")
 
 # ─── anomalies callout ───────────────────────────────────────────────────────
 
