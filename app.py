@@ -4,6 +4,7 @@ Phase 1: Ituran GPS report → classified Excel output
 """
 
 import streamlit as st
+import streamlit.components.v1 as components
 import pandas as pd
 import requests
 from datetime import date, datetime
@@ -41,28 +42,34 @@ if not st.session_state.authenticated:
             st.error("סיסמה שגויה. נסה שנית.")
     st.stop()
 
-# ─── RTL + styles ────────────────────────────────────────────────────────────
-
-st.markdown("""
+# ─── inject X close button into flatpickr via parent DOM ─────────────────────
+components.html("""
 <script>
-function injectFpClose() {
-    document.querySelectorAll('.flatpickr-calendar.open').forEach(cal => {
-        if (!cal.querySelector('.fp-close-btn')) {
-            const btn = document.createElement('button');
+(function() {
+    function injectClose() {
+        var doc = window.parent.document;
+        doc.querySelectorAll('.flatpickr-calendar.open').forEach(function(cal) {
+            if (cal.querySelector('.fp-close-btn')) return;
+            var btn = doc.createElement('button');
             btn.innerHTML = '✕';
             btn.className = 'fp-close-btn';
             btn.title = 'סגור';
-            btn.onclick = (e) => {
+            btn.addEventListener('click', function(e) {
                 e.stopPropagation();
                 cal.classList.remove('open');
-            };
+            });
             cal.insertBefore(btn, cal.firstChild);
-        }
-    });
-}
-document.addEventListener('click', () => setTimeout(injectFpClose, 80));
-document.addEventListener('focusin', () => setTimeout(injectFpClose, 80));
+        });
+    }
+    window.parent.document.addEventListener('click',   function(){ setTimeout(injectClose, 120); });
+    window.parent.document.addEventListener('focusin', function(){ setTimeout(injectClose, 120); });
+})();
 </script>
+""", height=0)
+
+# ─── RTL + styles ────────────────────────────────────────────────────────────
+
+st.markdown("""
 <style>
     body, .stApp { direction: rtl; text-align: right; }
     .stDownloadButton button { width: 100%; }
@@ -76,41 +83,28 @@ document.addEventListener('focusin', () => setTimeout(injectFpClose, 80));
     [data-testid="stDateInput"] label { direction: rtl; text-align: right; width: 100%; }
     /* shrink + style the calendar popup */
     .flatpickr-calendar {
-        width: 220px !important;
-        font-size: 11px !important;
-        left: 0 !important;
-        right: auto !important;
+        transform: scale(0.82) !important;
+        transform-origin: top left !important;
         border: 2px solid #4a90d9 !important;
         border-radius: 12px !important;
-        box-shadow: 0 6px 20px rgba(0,0,0,0.22) !important;
+        box-shadow: 0 6px 20px rgba(0,0,0,0.25) !important;
         overflow: hidden !important;
-        position: relative !important;
     }
-    .flatpickr-day {
-        max-width: 26px !important;
-        height: 26px !important;
-        line-height: 26px !important;
-        font-size: 11px !important;
-    }
-    .flatpickr-weekday { font-size: 10px !important; }
-    .flatpickr-months { font-size: 11px !important; }
-    .flatpickr-month { height: 28px !important; }
-    .numInputWrapper { width: 60px !important; }
     /* X close button injected by JS */
     .fp-close-btn {
         position: absolute !important;
-        top: 5px !important;
+        top: 4px !important;
         left: 6px !important;
         background: none !important;
         border: none !important;
-        font-size: 13px !important;
+        font-size: 14px !important;
         cursor: pointer !important;
-        color: #888 !important;
+        color: #999 !important;
         z-index: 9999 !important;
-        line-height: 1 !important;
-        padding: 0 3px !important;
+        padding: 0 4px !important;
+        border-radius: 4px !important;
     }
-    .fp-close-btn:hover { color: #e00 !important; }
+    .fp-close-btn:hover { color: #cc0000 !important; background: #fee !important; }
     /* file uploader compact */
     [data-testid="stFileUploader"] { max-width: 420px; }
     /* number inputs compact */
