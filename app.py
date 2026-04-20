@@ -44,6 +44,25 @@ if not st.session_state.authenticated:
 # ─── RTL + styles ────────────────────────────────────────────────────────────
 
 st.markdown("""
+<script>
+function injectFpClose() {
+    document.querySelectorAll('.flatpickr-calendar.open').forEach(cal => {
+        if (!cal.querySelector('.fp-close-btn')) {
+            const btn = document.createElement('button');
+            btn.innerHTML = '✕';
+            btn.className = 'fp-close-btn';
+            btn.title = 'סגור';
+            btn.onclick = (e) => {
+                e.stopPropagation();
+                cal.classList.remove('open');
+            };
+            cal.insertBefore(btn, cal.firstChild);
+        }
+    });
+}
+document.addEventListener('click', () => setTimeout(injectFpClose, 80));
+document.addEventListener('focusin', () => setTimeout(injectFpClose, 80));
+</script>
 <style>
     body, .stApp { direction: rtl; text-align: right; }
     .stDownloadButton button { width: 100%; }
@@ -55,12 +74,17 @@ st.markdown("""
     /* date picker RTL fix + compact */
     [data-testid="stDateInput"] { direction: ltr; }
     [data-testid="stDateInput"] label { direction: rtl; text-align: right; width: 100%; }
-    /* shrink the calendar popup */
+    /* shrink + style the calendar popup */
     .flatpickr-calendar {
         width: 220px !important;
         font-size: 11px !important;
         left: 0 !important;
         right: auto !important;
+        border: 2px solid #4a90d9 !important;
+        border-radius: 12px !important;
+        box-shadow: 0 6px 20px rgba(0,0,0,0.22) !important;
+        overflow: hidden !important;
+        position: relative !important;
     }
     .flatpickr-day {
         max-width: 26px !important;
@@ -72,6 +96,21 @@ st.markdown("""
     .flatpickr-months { font-size: 11px !important; }
     .flatpickr-month { height: 28px !important; }
     .numInputWrapper { width: 60px !important; }
+    /* X close button injected by JS */
+    .fp-close-btn {
+        position: absolute !important;
+        top: 5px !important;
+        left: 6px !important;
+        background: none !important;
+        border: none !important;
+        font-size: 13px !important;
+        cursor: pointer !important;
+        color: #888 !important;
+        z-index: 9999 !important;
+        line-height: 1 !important;
+        padding: 0 3px !important;
+    }
+    .fp-close-btn:hover { color: #e00 !important; }
     /* file uploader compact */
     [data-testid="stFileUploader"] { max-width: 420px; }
     /* number inputs compact */
