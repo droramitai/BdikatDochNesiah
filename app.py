@@ -209,8 +209,10 @@ def highlight_anomaly(row):
     return [""] * len(row)
 
 
+numeric_cols = ["פריקת מכולות (ש')", "הסעות עובדים (ש')", 'סה"כ עבודה (ש\')', "חניה/שבת (ש')", "חריגות (ש')"]
 st.dataframe(
-    df.style.apply(highlight_anomaly, axis=1),
+    df.style.apply(highlight_anomaly, axis=1)
+           .format({col: "{:.3f}" for col in numeric_cols}),
     width="stretch",
     hide_index=True,
 )
