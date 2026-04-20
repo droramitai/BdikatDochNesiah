@@ -153,55 +153,91 @@ total_drive_h     = sum(d["duration"].total_seconds() for d in drives
                         if d["type"] == TYPE_TRANSPORT) / 3600
 
 gross_transport_h = total_transport_h + total_drive_h
-# ימים שיש בהם נסיעות בפועל (לא רק עצירות קצרות) — רק הם מקבלים קיזוז
-days_with_drives  = set(d["date"] for d in drives if d["type"] == TYPE_TRANSPORT)
-total_deduction_h = (commute_deduction * 2 / 60) * len(days_with_drives)
+
+# ── קיזוז עם שאריות: בוקר מהנסיעה הראשונה קדימה, ערב מהאחרונה אחורה ──
+from collections import defaultdict
+
+def calc_drive_deductions(drives, commute_deduction):
+    """מחזיר dict: (date, start) -> deduction_hours"""
+    if commute_deduction == 0:
+        return {}
+    day_map = defaultdict(list)
+    for d in drives:
+        day_map[d["date"]].append(d)
+    result = {}
+    for date, day_drives in day_map.items():
+        sorted_d = sorted(day_drives, key=lambda x: x["start"])
+        n = len(sorted_d)
+        durs  = [d["duration"].total_seconds() / 60 for d in sorted_d]
+        deds  = [0.0] * n
+        # בוקר — מהראשון קדימה
+        rem = float(commute_deduction)
+        for i in range(n):
+            if rem <= 0: break
+            take = min(rem, durs[i])
+            deds[i] += take
+            rem -= take
+        # ערב — מהאחרון אחורה
+        rem = float(commute_deduction)
+        for i in range(n - 1, -1, -1):
+            if rem <= 0: break
+            avail = durs[i] - deds[i]
+            take  = min(rem, max(0.0, avail))
+            deds[i] += take
+            rem -= take
+        for i, d in enumerate(sorted_d):
+            result[(date, d["start"])] = round(deds[i] / 60, 2)
+    return result
+
+drive_ded_map = calc_drive_deductions(drives, commute_deduction)
+total_deduction_h = sum(drive_ded_map.values())
 net_transport_h   = max(0.0, gross_transport_h - total_deduction_h)
 
+# ── תוויות סיווג לתצוגה ──
+LABEL_MAP = {
+    ("stop",  TYPE_UNLOAD):    "עבודה",
+    ("stop",  TYPE_TRANSPORT): "עצירת ביניים",
+    ("stop",  TYPE_PARKING):   "חניה / שבת",
+    ("stop",  TYPE_ANOMALY):   "חריג",
+    ("drive", TYPE_TRANSPORT): "נסיעה",
+    ("drive", TYPE_ANOMALY):   "נסיעה",
+}
+ROW_COLORS = {
+    "עבודה":          "#dce8f5",
+    "עצירת ביניים":   "#e8f5e8",
+    "נסיעה":          "#e8f5e8",
+    "חניה / שבת":     "#fafadc",
+    "חריג":           "#ffe0e0",
+}
+
 col1, col2, col3, col4 = st.columns(4)
-col1.metric("פריקת מכולות", f"{total_unload_h:.2f} ש'",
-            help="סה\"כ שעות בעצירות ≥ סף הגדרה")
-col2.metric("הסעות עובדים", f"{gross_transport_h:.2f} ש'",
-            help="נסיעות + עצירות קצרות בשעות עבודה — לפני קיזוז")
+col1.metric("שעות עבודה", f"{total_unload_h:.2f} ש'",
+            help="סה\"כ שעות עצירות ≥ סף הגדרה")
+col2.metric("שעות נסיעה", f"{gross_transport_h:.2f} ש'",
+            help="נסיעות + עצירות ביניים — לפני קיזוז")
 col3.metric("חריגים", f"{len(anomaly_stops) + len(anomaly_drives)}",
-            help="פעילויות מחוץ לשעות 05:00-20:00",
+            help="פעילויות מחוץ לשעות עבודה",
             delta=None if not anomaly_stops else "לבדיקה",
             delta_color="inverse")
 col4.metric("ימי עבודה", len(set(s["date"] for s in stops
                                   if s["type"] in (TYPE_UNLOAD, TYPE_TRANSPORT))))
 if commute_deduction > 0:
-    st.info(f"✂️ הסעות נטו אחרי קיזוז: **{net_transport_h:.2f} ש'** "
-            f"(קיזוז {commute_deduction} דק' הלוך + {commute_deduction} דק' חזור × "
-            f"{len(days_with_drives)} ימי נסיעה = {total_deduction_h:.2f} ש' סה\"כ)")
+    st.info(f"✂️ נסיעה נטו אחרי קיזוז: **{net_transport_h:.2f} ש'** "
+            f"(קיזוז {commute_deduction} דק' הלוך + {commute_deduction} דק' חזור = "
+            f"{total_deduction_h:.2f} ש' סה\"כ)")
 
-# ─── summary table ───────────────────────────────────────────────────────────
+# ─── טבלת פירוט ──────────────────────────────────────────────────────────────
 
 st.divider()
 st.subheader("📋 פירוט נסיעות ועצירות")
 
-# נסיעה ראשונה ואחרונה לכל יום — מכל הסיווגים (כולל חריגים)
-from collections import defaultdict
-_day_starts = defaultdict(list)
-for d in drives:
-    _day_starts[d["date"]].append(d["start"])
-day_first = {dt: min(v) for dt, v in _day_starts.items()}
-day_last  = {dt: max(v) for dt, v in _day_starts.items()}
-
-# צבעי רקע לפי סיווג
-ROW_COLORS = {
-    TYPE_UNLOAD:    "#dce8f5",
-    TYPE_TRANSPORT: "#e8f5e8",
-    TYPE_PARKING:   "#fafadc",
-    TYPE_ANOMALY:   "#ffe0e0",
-}
-
-# בניית שורות — שורה לכל נסיעה/עצירה
 all_items = [("stop", s) for s in stops] + [("drive", d) for d in drives]
 all_items.sort(key=lambda x: x[1]["start"])
 
 detail_rows = []
 for kind, item in all_items:
     duration_h = round(item["duration"].total_seconds() / 3600, 2)
+    label = LABEL_MAP.get((kind, item["type"]), item["type"])
 
     if kind == "drive":
         frm  = item.get("from_address", "") or ""
@@ -210,16 +246,7 @@ for kind, item in all_items:
     else:
         addr = item.get("address", "") or ""
 
-    # קיזוז — נסיעה ראשונה/אחרונה ביום מכל סוג
-    ded = 0.0
-    if kind == "drive" and commute_deduction > 0:
-        is_first = item["start"] == day_first.get(item["date"])
-        is_last  = item["start"] == day_last.get(item["date"])
-        if is_first and is_last:          # יום עם נסיעה אחת בלבד
-            ded = round(commute_deduction * 2 / 60, 2)
-        elif is_first or is_last:
-            ded = round(commute_deduction / 60, 2)
-
+    ded   = drive_ded_map.get((item["date"], item["start"]), 0.0) if kind == "drive" else 0.0
     net_h = round(max(0.0, duration_h - ded), 2)
 
     detail_rows.append({
@@ -230,7 +257,7 @@ for kind, item in all_items:
         "משך (ש')":      duration_h,
         "קיזוז (ש')":    ded,
         "נטו (ש')":      net_h,
-        "סיווג":         item["type"],
+        "סיווג":         label,
         "כתובת / מסלול": addr,
     })
 
@@ -264,7 +291,7 @@ st.dataframe(
     width="stretch",
     hide_index=True,
 )
-st.caption("🔴 אדום=חריג  🔵 כחול=פריקת מכולות  🟢 ירוק=נסיעה  🟡 צהוב=חניה/שבת")
+st.caption("🔵 כחול=עבודה  🟢 ירוק=נסיעה/עצירת ביניים  🟡 צהוב=חניה/שבת  🔴 אדום=חריג")
 
 # ─── anomalies callout ───────────────────────────────────────────────────────
 
