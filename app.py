@@ -179,12 +179,11 @@ if commute_deduction > 0:
 st.divider()
 st.subheader("📋 פירוט נסיעות ועצירות")
 
-# נסיעות TYPE_TRANSPORT ראשונות ואחרונות לכל יום (לצורך קיזוז)
+# נסיעה ראשונה ואחרונה לכל יום — מכל הסיווגים (כולל חריגים)
 from collections import defaultdict
 _day_starts = defaultdict(list)
 for d in drives:
-    if d["type"] == TYPE_TRANSPORT:
-        _day_starts[d["date"]].append(d["start"])
+    _day_starts[d["date"]].append(d["start"])
 day_first = {dt: min(v) for dt, v in _day_starts.items()}
 day_last  = {dt: max(v) for dt, v in _day_starts.items()}
 
@@ -211,9 +210,9 @@ for kind, item in all_items:
     else:
         addr = item.get("address", "") or ""
 
-    # קיזוז — רק נסיעות TYPE_TRANSPORT ראשונה/אחרונה ביום
+    # קיזוז — נסיעה ראשונה/אחרונה ביום מכל סוג
     ded = 0.0
-    if kind == "drive" and item["type"] == TYPE_TRANSPORT and commute_deduction > 0:
+    if kind == "drive" and commute_deduction > 0:
         is_first = item["start"] == day_first.get(item["date"])
         is_last  = item["start"] == day_last.get(item["date"])
         if is_first and is_last:          # יום עם נסיעה אחת בלבד
