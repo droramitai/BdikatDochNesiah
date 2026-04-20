@@ -543,7 +543,8 @@ for row in detail_rows:
         day_map_s[key]["סוג יום"] = "יום עבודה"
 
 summary_rows = sorted(day_map_s.values(), key=lambda x: x["_date_obj"])
-SUMMARY_COLS = ["שם עובד", "תאריך", "יום", "עבודה (ש')", "נסיעה נטו (ש')", "סוג יום"]
+# סדר RTL: שם עובד ותאריך בימין (= אחרון ברשימה בתצוגת LTR)
+SUMMARY_COLS = ["סוג יום", "נסיעה נטו (ש')", "עבודה (ש')", "יום", "תאריך", "שם עובד"]
 df_day = pd.DataFrame(summary_rows)[SUMMARY_COLS]
 
 def highlight_day(row):
@@ -588,12 +589,15 @@ with st.expander("📋 פירוט מלא נסיעות ועצירות", expanded=
     filtered.append(ftotal)
 
     df_detail = pd.DataFrame(filtered)[DETAIL_COLS]
+    # fit-content width, aligned right (empty space on left)
+    st.markdown('<div style="display:flex; justify-content:flex-end;">', unsafe_allow_html=True)
     st.dataframe(
         df_detail.style
                  .apply(highlight_detail, axis=1)
                  .format({"משך (ש')": "{:.2f}", "קיזוז (ש')": "{:.2f}", "נטו (ש')": "{:.2f}"}),
-        use_container_width=True, hide_index=True,
+        use_container_width=False, hide_index=True,
     )
+    st.markdown('</div>', unsafe_allow_html=True)
     st.caption(
         "🔵 כחול=עבודה  🟢 ירוק=נסיעה/עצירת ביניים  🟡 צהוב=חניה/שבת  "
         "🔴 אדום=חריג  🟣 סגול=סוף שבוע/חג  🟩 ירוק בהיר=חופשה"
