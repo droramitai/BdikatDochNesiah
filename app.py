@@ -48,44 +48,39 @@ st.markdown("""
 <style>
     body, .stApp { direction: rtl; text-align: right; }
     .stDownloadButton button { width: 100%; }
-    /* tighten sidebar spacing */
+    /* sidebar spacing – target ~75% height coverage */
     section[data-testid="stSidebar"] .block-container {
-        padding-top: 0.8rem !important;
-        padding-bottom: 0.5rem !important;
+        padding-top: 1rem !important;
+        padding-bottom: 1rem !important;
     }
-    section[data-testid="stSidebar"] [data-testid="stVerticalBlock"] { gap: 0.35rem !important; }
+    section[data-testid="stSidebar"] [data-testid="stVerticalBlock"] { gap: 0.55rem !important; }
     section[data-testid="stSidebar"] [data-testid="element-container"] { margin-bottom: 0 !important; }
-    section[data-testid="stSidebar"] label { font-size: 0.82rem !important; margin-bottom: 1px !important; line-height: 1.3 !important; }
-    section[data-testid="stSidebar"] p { margin: 1px 0 !important; font-size: 0.82rem !important; }
-    section[data-testid="stSidebar"] small { font-size: 0.75rem !important; }
-    section[data-testid="stSidebar"] hr { margin: 6px 0 !important; }
-    section[data-testid="stSidebar"] h2, section[data-testid="stSidebar"] h3 { margin: 4px 0 !important; padding: 0 !important; font-size: 1.05rem !important; }
-    section[data-testid="stSidebar"] [data-testid="stNumberInput"] input { height: 32px !important; padding: 4px 8px !important; font-size: 0.88rem !important; }
-    section[data-testid="stSidebar"] [data-testid="stCheckbox"] { margin: 2px 0 !important; }
-    section[data-testid="stSidebar"] [data-testid="stDateInput"] { margin-bottom: 4px !important; }
+    section[data-testid="stSidebar"] label { font-size: 0.85rem !important; margin-bottom: 2px !important; }
+    section[data-testid="stSidebar"] p  { margin: 2px 0 !important; font-size: 0.85rem !important; }
+    section[data-testid="stSidebar"] small { font-size: 0.78rem !important; }
+    section[data-testid="stSidebar"] hr { margin: 8px 0 !important; }
+    section[data-testid="stSidebar"] [data-testid="stNumberInput"] input { height: 34px !important; font-size: 0.9rem !important; }
+    section[data-testid="stSidebar"] [data-testid="stCheckbox"] { margin: 4px 0 !important; }
     /* widen dataframe */
     [data-testid="stDataFrame"] { width: 100% !important; }
     /* date picker RTL fix */
     [data-testid="stDateInput"] { direction: ltr; }
     [data-testid="stDateInput"] label { direction: rtl; text-align: right; width: 100%; }
     /* shrink + style the calendar popup using correct baseweb selectors */
-    [data-baseweb="calendar"] {
-        transform: scale(0.80) !important;
-        transform-origin: top left !important;
-        border: 2px solid #4a90d9 !important;
-        border-radius: 12px !important;
-        box-shadow: 0 6px 20px rgba(0,0,0,0.25) !important;
-        overflow: hidden !important;
-        margin-bottom: -60px !important;
-    }
-    [data-baseweb="popover"] {
-        overflow: visible !important;
+    /* calendar: open UPWARD by shifting the popover up */
+    section[data-testid="stSidebar"] [data-baseweb="popover"] {
+        margin-top: -445px !important;
         left: 4px !important;
         right: auto !important;
-    }
-    /* allow sidebar to show calendar without clipping */
-    section[data-testid="stSidebar"] > div:first-child {
         overflow: visible !important;
+    }
+    [data-baseweb="calendar"] {
+        transform: scale(0.82) !important;
+        transform-origin: bottom left !important;
+        border: 2px solid #4a90d9 !important;
+        border-radius: 12px !important;
+        box-shadow: 0 -4px 20px rgba(0,0,0,0.20) !important;
+        overflow: hidden !important;
     }
     /* file uploader compact */
     [data-testid="stFileUploader"] { max-width: 420px; }
