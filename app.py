@@ -52,9 +52,26 @@ st.markdown("""
     section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"] > div { margin-bottom: 0 !important; }
     /* widen dataframe */
     [data-testid="stDataFrame"] { width: 100% !important; }
-    /* date picker RTL fix */
+    /* date picker RTL fix + compact */
     [data-testid="stDateInput"] { direction: ltr; }
     [data-testid="stDateInput"] label { direction: rtl; text-align: right; width: 100%; }
+    /* shrink the calendar popup */
+    .flatpickr-calendar {
+        width: 220px !important;
+        font-size: 11px !important;
+        left: 0 !important;
+        right: auto !important;
+    }
+    .flatpickr-day {
+        max-width: 26px !important;
+        height: 26px !important;
+        line-height: 26px !important;
+        font-size: 11px !important;
+    }
+    .flatpickr-weekday { font-size: 10px !important; }
+    .flatpickr-months { font-size: 11px !important; }
+    .flatpickr-month { height: 28px !important; }
+    .numInputWrapper { width: 60px !important; }
     /* file uploader compact */
     [data-testid="stFileUploader"] { max-width: 420px; }
     /* number inputs compact */
