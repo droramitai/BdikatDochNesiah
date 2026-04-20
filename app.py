@@ -50,19 +50,19 @@ st.markdown("""
     .stDownloadButton button { width: 100%; }
     /* tighten sidebar spacing */
     section[data-testid="stSidebar"] .block-container {
-        padding-top: 0.5rem !important;
-        padding-bottom: 0 !important;
+        padding-top: 0.8rem !important;
+        padding-bottom: 0.5rem !important;
     }
-    section[data-testid="stSidebar"] [data-testid="stVerticalBlock"] { gap: 0.1rem !important; }
-    section[data-testid="stSidebar"] [data-testid="element-container"] { margin-bottom: 0 !important; padding-bottom: 0 !important; }
-    section[data-testid="stSidebar"] label { font-size: 0.78rem !important; margin-bottom: 0 !important; line-height: 1.2 !important; }
-    section[data-testid="stSidebar"] p { margin: 0 !important; font-size: 0.78rem !important; }
-    section[data-testid="stSidebar"] small { font-size: 0.72rem !important; }
-    section[data-testid="stSidebar"] hr { margin: 3px 0 !important; }
-    section[data-testid="stSidebar"] h2, section[data-testid="stSidebar"] h3 { margin: 2px 0 !important; padding: 0 !important; font-size: 1rem !important; }
-    section[data-testid="stSidebar"] [data-testid="stNumberInput"] input { height: 30px !important; padding: 2px 8px !important; font-size: 0.85rem !important; }
-    section[data-testid="stSidebar"] [data-testid="stCheckbox"] { margin: 0 !important; padding: 0 !important; }
-    section[data-testid="stSidebar"] [data-testid="stDateInput"] { margin-bottom: 2px !important; }
+    section[data-testid="stSidebar"] [data-testid="stVerticalBlock"] { gap: 0.35rem !important; }
+    section[data-testid="stSidebar"] [data-testid="element-container"] { margin-bottom: 0 !important; }
+    section[data-testid="stSidebar"] label { font-size: 0.82rem !important; margin-bottom: 1px !important; line-height: 1.3 !important; }
+    section[data-testid="stSidebar"] p { margin: 1px 0 !important; font-size: 0.82rem !important; }
+    section[data-testid="stSidebar"] small { font-size: 0.75rem !important; }
+    section[data-testid="stSidebar"] hr { margin: 6px 0 !important; }
+    section[data-testid="stSidebar"] h2, section[data-testid="stSidebar"] h3 { margin: 4px 0 !important; padding: 0 !important; font-size: 1.05rem !important; }
+    section[data-testid="stSidebar"] [data-testid="stNumberInput"] input { height: 32px !important; padding: 4px 8px !important; font-size: 0.88rem !important; }
+    section[data-testid="stSidebar"] [data-testid="stCheckbox"] { margin: 2px 0 !important; }
+    section[data-testid="stSidebar"] [data-testid="stDateInput"] { margin-bottom: 4px !important; }
     /* widen dataframe */
     [data-testid="stDataFrame"] { width: 100% !important; }
     /* date picker RTL fix */
