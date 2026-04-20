@@ -4,7 +4,6 @@ Phase 1: Ituran GPS report → classified Excel output
 """
 
 import streamlit as st
-import streamlit.components.v1 as components
 import pandas as pd
 import requests
 from datetime import date, datetime
@@ -42,37 +41,6 @@ if not st.session_state.authenticated:
             st.error("סיסמה שגויה. נסה שנית.")
     st.stop()
 
-# ─── inject X close button into flatpickr via parent DOM ─────────────────────
-components.html("""
-<script>
-(function() {
-    function injectClose() {
-        var doc = window.parent.document;
-        doc.querySelectorAll('[data-baseweb="calendar"]').forEach(function(cal) {
-            if (cal.querySelector('.fp-close-btn')) return;
-            cal.style.position = 'relative';
-            var btn = doc.createElement('button');
-            btn.innerHTML = '✕';
-            btn.className = 'fp-close-btn';
-            btn.title = 'סגור';
-            btn.addEventListener('click', function(e) {
-                e.stopPropagation();
-                // Close by clicking the sidebar header (outside the popover)
-                var outside = doc.querySelector('section[data-testid="stSidebar"] h2, section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"]');
-                if (outside) {
-                    ['mousedown','mouseup','click'].forEach(function(evName) {
-                        outside.dispatchEvent(new MouseEvent(evName, {bubbles:true, cancelable:true}));
-                    });
-                }
-            });
-            cal.insertBefore(btn, cal.firstChild);
-        });
-    }
-    window.parent.document.addEventListener('click',   function(){ setTimeout(injectClose, 150); });
-    window.parent.document.addEventListener('focusin', function(){ setTimeout(injectClose, 150); });
-})();
-</script>
-""", height=0)
 
 # ─── RTL + styles ────────────────────────────────────────────────────────────
 
@@ -119,22 +87,6 @@ st.markdown("""
     section[data-testid="stSidebar"] > div:first-child {
         overflow: visible !important;
     }
-    /* X close button */
-    .fp-close-btn {
-        position: absolute !important;
-        top: 6px !important;
-        left: 8px !important;
-        background: none !important;
-        border: none !important;
-        font-size: 15px !important;
-        cursor: pointer !important;
-        color: #999 !important;
-        z-index: 9999 !important;
-        padding: 0 4px !important;
-        border-radius: 4px !important;
-        line-height: 1 !important;
-    }
-    .fp-close-btn:hover { color: #cc0000 !important; background: #fee !important; }
     /* file uploader compact */
     [data-testid="stFileUploader"] { max-width: 420px; }
     /* number inputs compact */
