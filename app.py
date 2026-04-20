@@ -152,11 +152,22 @@ total_transport_h = sum(s["duration"].total_seconds() for s in transport_stops) 
 total_drive_h     = sum(d["duration"].total_seconds() for d in drives
                         if d["type"] == TYPE_TRANSPORT) / 3600
 
+gross_transport_h = total_transport_h + total_drive_h
+working_days = len(set(s["date"] for s in stops if s["type"] in (TYPE_UNLOAD, TYPE_TRANSPORT)))
+total_deduction_h = (commute_deduction * 2 / 60) * working_days
+net_transport_h   = max(0.0, gross_transport_h - total_deduction_h)
+
 col1, col2, col3, col4 = st.columns(4)
-col1.metric("פריקת מכולות", f"{total_unload_h:.1f} ש'",
+col1.metric("פריקת מכולות", f"{total_unload_h:.2f} ש'",
             help="סה\"כ שעות בעצירות ≥ סף הגדרה")
-col2.metric("הסעות עובדים", f"{total_transport_h + total_drive_h:.1f} ש'",
-            help="נסיעות + עצירות קצרות בשעות עבודה")
+if commute_deduction > 0:
+    col2.metric("הסעות עובדים (ברוטו)", f"{gross_transport_h:.2f} ש'",
+                delta=f"נטו: {net_transport_h:.2f} ש'",
+                delta_color="off",
+                help="ברוטו = לפני קיזוז נסיעה. נטו = אחרי קיזוז")
+else:
+    col2.metric("הסעות עובדים", f"{gross_transport_h:.2f} ש'",
+                help="נסיעות + עצירות קצרות בשעות עבודה")
 col3.metric("חריגים", f"{len(anomaly_stops) + len(anomaly_drives)}",
             help="פעילויות מחוץ לשעות 05:00-20:00",
             delta=None if not anomaly_stops else "לבדיקה",
@@ -173,6 +184,7 @@ COL_ORDER = [
     "חריגות (ש')",
     "חניה/שבת (ש')",
     'סה"כ עבודה (ש\')',
+    "קיזוז (ש')",
     "הסעות עובדים (ש')",
     "פריקת מכולות (ש')",
     "תאריך",
@@ -184,18 +196,20 @@ deduction_h = float(commute_deduction * 2) / 60.0  # קיזוז כולל ליו�
 rows = []
 sorted_keys = sorted(summary.keys(), key=lambda k: (k[1], k[0]))
 for (driver, dt), d in [(k, summary[k]) for k in sorted_keys]:
-    unload    = round(d["unload"].total_seconds()    / 3600, 3)
-    transport = round(d["transport"].total_seconds() / 3600, 3)
-    parking   = round(d["parking"].total_seconds()  / 3600, 3)
-    anomaly   = round(d["anomaly"].total_seconds()  / 3600, 3)
+    unload    = round(d["unload"].total_seconds()    / 3600, 2)
+    transport = round(d["transport"].total_seconds() / 3600, 2)
+    parking   = round(d["parking"].total_seconds()  / 3600, 2)
+    anomaly   = round(d["anomaly"].total_seconds()  / 3600, 2)
     # קיזוז נסיעה — רק אם יש שעות נסיעה באותו יום
-    transport_net = round(max(0.0, transport - deduction_h), 3) if transport > 0 else 0.0
+    day_deduction = round(deduction_h, 2) if transport > 0 else 0.0
+    transport_net = round(max(0.0, transport - day_deduction), 2)
     rows.append({
         "שם עובד":              driver,
         "תאריך":               dt.strftime("%d/%m/%Y"),
         "פריקת מכולות (ש')":   unload,
         "הסעות עובדים (ש')":   transport_net,
-        'סה"כ עבודה (ש\')':    round(unload + transport_net, 3),
+        "קיזוז (ש')":          day_deduction,
+        'סה"כ עבודה (ש\')':    round(unload + transport_net, 2),
         "חניה/שבת (ש')":       parking,
         "חריגות (ש')":         anomaly,
     })
@@ -209,10 +223,10 @@ def highlight_anomaly(row):
     return [""] * len(row)
 
 
-numeric_cols = ["פריקת מכולות (ש')", "הסעות עובדים (ש')", 'סה"כ עבודה (ש\')', "חניה/שבת (ש')", "חריגות (ש')"]
+numeric_cols = ["פריקת מכולות (ש')", "הסעות עובדים (ש')", "קיזוז (ש')", 'סה"כ עבודה (ש\')', "חניה/שבת (ש')", "חריגות (ש')"]
 st.dataframe(
     df.style.apply(highlight_anomaly, axis=1)
-           .format({col: "{:.3f}" for col in numeric_cols}),
+           .format({col: "{:.2f}" for col in numeric_cols}),
     width="stretch",
     hide_index=True,
 )
