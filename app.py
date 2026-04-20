@@ -97,8 +97,18 @@ with st.sidebar:
     st.caption(f"= {h} שעות {m:02d} דקות")
 
     st.divider()
+    st.subheader("קיזוז נסיעה יומי")
+    commute_deduction = st.number_input(
+        "קיזוז לכיוון (דקות)",
+        min_value=0, max_value=60, value=0, step=5,
+        help="דקות שמקזזים בגין יציאה לעבודה וחזרה הביתה. הקיזוז הכולל ליום = פי 2 מהערך הזה"
+    )
+    if commute_deduction > 0:
+        st.caption(f"קיזוז יומי: {commute_deduction * 2} דקות ({commute_deduction} הלוך + {commute_deduction} חזור)")
+
+    st.divider()
     st.markdown("**חניה/שבת:** עצירה >12ש' או לילה >5ש'")
-    st.markdown("גרסה 1.0 | שלב 1")
+    st.markdown("גרסה 1.1 | שלב 1")
 
 # ─── file upload ─────────────────────────────────────────────────────────────
 
@@ -169,6 +179,8 @@ COL_ORDER = [
     "שם עובד",
 ]
 
+deduction_h = (commute_deduction * 2) / 60  # קיזוז כולל ליום בשעות
+
 rows = []
 sorted_keys = sorted(summary.keys(), key=lambda k: (k[1], k[0]))
 for (driver, dt), d in [(k, summary[k]) for k in sorted_keys]:
@@ -176,12 +188,14 @@ for (driver, dt), d in [(k, summary[k]) for k in sorted_keys]:
     transport = round(d["transport"].total_seconds() / 3600, 2)
     parking   = round(d["parking"].total_seconds()  / 3600, 2)
     anomaly   = round(d["anomaly"].total_seconds()  / 3600, 2)
+    # קיזוז נסיעה — רק אם יש שעות נסיעה באותו יום
+    transport_net = round(max(0.0, transport - deduction_h), 2) if transport > 0 else 0.0
     rows.append({
         "שם עובד":              driver,
         "תאריך":               dt.strftime("%d/%m/%Y"),
         "פריקת מכולות (ש')":   unload,
-        "הסעות עובדים (ש')":   transport,
-        'סה"כ עבודה (ש\')':    round(unload + transport, 2),
+        "הסעות עובדים (ש')":   transport_net,
+        'סה"כ עבודה (ש\')':    round(unload + transport_net, 2),
         "חניה/שבת (ש')":       parking,
         "חריגות (ש')":         anomaly,
     })
