@@ -179,23 +179,23 @@ COL_ORDER = [
     "שם עובד",
 ]
 
-deduction_h = (commute_deduction * 2) / 60  # קיזוז כולל ליום בשעות
+deduction_h = float(commute_deduction * 2) / 60.0  # קיזוז כולל ליום בשעות
 
 rows = []
 sorted_keys = sorted(summary.keys(), key=lambda k: (k[1], k[0]))
 for (driver, dt), d in [(k, summary[k]) for k in sorted_keys]:
-    unload    = round(d["unload"].total_seconds()    / 3600, 2)
-    transport = round(d["transport"].total_seconds() / 3600, 2)
-    parking   = round(d["parking"].total_seconds()  / 3600, 2)
-    anomaly   = round(d["anomaly"].total_seconds()  / 3600, 2)
+    unload    = round(d["unload"].total_seconds()    / 3600, 3)
+    transport = round(d["transport"].total_seconds() / 3600, 3)
+    parking   = round(d["parking"].total_seconds()  / 3600, 3)
+    anomaly   = round(d["anomaly"].total_seconds()  / 3600, 3)
     # קיזוז נסיעה — רק אם יש שעות נסיעה באותו יום
-    transport_net = round(max(0.0, transport - deduction_h), 2) if transport > 0 else 0.0
+    transport_net = round(max(0.0, transport - deduction_h), 3) if transport > 0 else 0.0
     rows.append({
         "שם עובד":              driver,
         "תאריך":               dt.strftime("%d/%m/%Y"),
         "פריקת מכולות (ש')":   unload,
         "הסעות עובדים (ש')":   transport_net,
-        'סה"כ עבודה (ש\')':    round(unload + transport_net, 2),
+        'סה"כ עבודה (ש\')':    round(unload + transport_net, 3),
         "חניה/שבת (ש')":       parking,
         "חריגות (ש')":         anomaly,
     })
@@ -214,6 +214,8 @@ st.dataframe(
     width="stretch",
     hide_index=True,
 )
+if commute_deduction > 0:
+    st.caption(f"⚠️ הוחל קיזוז של {commute_deduction * 2} דקות ליום מעמודת הסעות עובדים ({commute_deduction} הלוך + {commute_deduction} חזור)")
 st.caption("🔴 שורה אדומה = יש פעילות מחוץ לשעות העבודה שדורשת בירור")
 
 # ─── anomalies callout ───────────────────────────────────────────────────────
