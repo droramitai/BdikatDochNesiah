@@ -183,24 +183,24 @@ def get_special_label(
 
     weekday = item_date.weekday()  # 0=Mon … 4=Fri, 5=Sat, 6=Sun
 
-    # Saturday → always סוף שבוע
+    # Saturday → always סוף שבוע/חג
     if weekday == 5:
-        return "סוף שבוע"
+        return "סוף שבוע/חג"
 
     # Full holiday
     if item_date in full_holidays:
-        return "חג"
+        return "סוף שבוע/חג"
 
     is_friday = (weekday == 4)
     is_eve    = (item_date in eve_holidays)
 
-    # Friday: if not a work day → entire day is סוף שבוע
+    # Friday: if not a work day → entire day is סוף שבוע/חג
     if is_friday and not friday_is_workday:
-        return "סוף שבוע"
+        return "סוף שבוע/חג"
 
     # Friday/eve after cutoff hour
     if (is_friday or is_eve) and item_start.hour >= friday_end_h:
-        return "סוף שבוע" if is_friday else "חג"
+        return "סוף שבוע/חג"
 
     return None
 
@@ -354,7 +354,7 @@ if include_holidays:
         full_holidays = full_holidays | fh
         eve_holidays  = eve_holidays  | eh
 
-SKIP_LABELS = {"חופשה", "חג", "סוף שבוע"}
+SKIP_LABELS = {"חופשה", "סוף שבוע/חג"}
 
 def special_label(item_date, item_start):
     return get_special_label(
@@ -369,7 +369,7 @@ HEBREW_DAYS = {0: "שני", 1: "שלישי", 2: "רביעי", 3: "חמישי", 4
 LABEL_MAP = {
     ("stop",  TYPE_UNLOAD):    "עבודה",
     ("stop",  TYPE_TRANSPORT): "עצירת ביניים",
-    ("stop",  TYPE_PARKING):   "חניה / שבת",
+    ("stop",  TYPE_PARKING):   "חניה",
     ("stop",  TYPE_ANOMALY):   "חריג",
     ("drive", TYPE_TRANSPORT): "נסיעה",
     ("drive", TYPE_ANOMALY):   "נסיעה",
@@ -378,10 +378,9 @@ ROW_COLORS = {
     "עבודה":          "#dce8f5",
     "עצירת ביניים":   "#e8f5e8",
     "נסיעה":          "#e8f5e8",
-    "חניה / שבת":     "#fafadc",
+    "חניה":           "#fafadc",
     "חריג":           "#ffe0e0",
-    "סוף שבוע":       "#f0e8ff",
-    "חג":             "#f0e8ff",
+    "סוף שבוע/חג":    "#f0e8ff",
     "חופשה":          "#e8fff0",
 }
 
@@ -608,7 +607,7 @@ with st.expander("📋 פירוט מלא נסיעות ועצירות", expanded=
         use_container_width=True, hide_index=True,
     )
     st.caption(
-        "🔵 כחול=עבודה  🟢 ירוק=נסיעה/עצירת ביניים  🟡 צהוב=חניה/שבת  "
+        "🔵 כחול=עבודה  🟢 ירוק=נסיעה/עצירת ביניים  🟡 צהוב=חניה  "
         "🔴 אדום=חריג  🟣 סגול=סוף שבוע/חג  🟩 ירוק בהיר=חופשה"
     )
 
@@ -640,6 +639,7 @@ if anomaly_stops or anomaly_drives:
             "משך":           f"{h2}ש' {m2:02d}′",
             "שעת סיום":      item["end"].strftime("%H:%M"),
             "שעת התחלה":     item["start"].strftime("%H:%M"),
+            "יום":           HEBREW_DAYS[item["date"].weekday()],
             "תאריך":         item["date"].strftime("%d/%m/%Y"),
         })
 

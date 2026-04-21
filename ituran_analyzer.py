@@ -33,7 +33,7 @@ MAX_WORK_STOP = timedelta(hours=12)
 
 TYPE_UNLOAD    = "פריקת מכולות"
 TYPE_TRANSPORT = "הסעות עובדים"
-TYPE_PARKING   = "חניה / שבת"
+TYPE_PARKING   = "חניה"
 TYPE_ANOMALY   = "חריג - מחוץ לשעות עבודה"
 
 
