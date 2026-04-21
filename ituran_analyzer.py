@@ -205,10 +205,11 @@ def build_periods(events: list[dict], threshold: timedelta,
 # ─── aggregation ─────────────────────────────────────────────────────────────
 
 def aggregate(stops: list[dict], drives: list[dict]) -> dict:
-    """Returns {(driver, date): {unload, transport, parking, anomaly}}"""
+    """Returns {(driver, date): {unload, transport, drives, parking, anomaly}}"""
     result = defaultdict(lambda: {
         "unload":    timedelta(),
         "transport": timedelta(),
+        "drives":    timedelta(),
         "parking":   timedelta(),
         "anomaly":   timedelta(),
     })
@@ -229,7 +230,7 @@ def aggregate(stops: list[dict], drives: list[dict]) -> dict:
         if d["type"] == TYPE_ANOMALY:
             result[key]["anomaly"] += d["duration"]
         else:
-            result[key]["transport"] += d["duration"]
+            result[key]["drives"] += d["duration"]
 
     return result
 
@@ -296,14 +297,15 @@ def write_summary_sheet(wb, summary: dict):
 
     # RTL order: col A appears RIGHTMOST on screen
     cols = [
-        ("שם עובד",                          18),   # A – rightmost
-        ("תאריך",                             14),   # B
-        ("יום",                               10),   # C
-        ("שעות פריקת מכולות",                22),   # D
-        ("שעות הסעות עובדים",                22),   # E
-        ('סה"כ שעות עבודה',                  20),   # F
-        ("שעות חניה/שבת (לא נספר)",          24),   # G
-        ("שעות חריגות (לבירור)",             22),   # H – leftmost
+        ("שם עובד",                    18),   # A – rightmost
+        ("תאריך",                       14),   # B
+        ("יום",                         10),   # C
+        ("שעות עבודה",                  18),   # D
+        ("שעות עצירות ביניים",          20),   # E
+        ("שעות נסיעה",                  18),   # F
+        ('סה"כ',                        14),   # G
+        ("שעות חניה (לא נספר)",         20),   # H
+        ("שעות חריגות (לבירור)",        20),   # I – leftmost
     ]
     num_cols = len(cols)
     for col, (header, width) in enumerate(cols, 1):
@@ -316,18 +318,19 @@ def write_summary_sheet(wb, summary: dict):
         d = summary[key]
         unload    = td_to_hours(d["unload"])
         transport = td_to_hours(d["transport"])
+        drv       = td_to_hours(d["drives"])
         parking   = td_to_hours(d["parking"])
         anomaly   = td_to_hours(d["anomaly"])
-        total     = round(unload + transport, 2)
+        total     = round(unload + transport + drv, 2)
         day_name  = HEBREW_DAYS[dt.weekday()]
 
         row_data = [driver, dt.strftime("%d/%m/%Y"), day_name,
-                    unload, transport, total, parking, anomaly]
+                    unload, transport, drv, total, parking, anomaly]
         fill = STRIPE if r % 2 == 0 else None
 
         for col, val in enumerate(row_data, 1):
             cell = ws.cell(row=r, column=col, value=val)
-            if col == 8 and anomaly > 0:   # col H = anomaly
+            if col == 9 and anomaly > 0:   # col I = anomaly
                 style_body(cell, FILL_ANOMALY)
             else:
                 style_body(cell, fill)
@@ -345,7 +348,7 @@ def write_summary_sheet(wb, summary: dict):
             cell.fill      = HDR_FILL
             cell.alignment = CENTER
         ws.cell(row=total_row, column=1, value='סה"כ')
-        # SUBTOTAL(9,…) respects filters; cols D-H (4-8) are numeric
+        # SUBTOTAL(9,…) respects filters; cols D-I (4-9) are numeric
         for col in range(4, num_cols + 1):
             letter = get_column_letter(col)
             ws.cell(row=total_row, column=col,
