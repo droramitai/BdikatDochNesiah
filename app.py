@@ -434,8 +434,8 @@ def is_normal(item_date, item_start):
 
 unload_stops    = [s for s in stops if s["type"] == TYPE_UNLOAD   and is_normal(s["date"], s["start"])]
 transport_stops = [s for s in stops if s["type"] == TYPE_TRANSPORT and is_normal(s["date"], s["start"])]
-anomaly_stops   = [s for s in stops if s["type"] == TYPE_ANOMALY]
-anomaly_drives  = [d for d in drives if d["type"] == TYPE_ANOMALY]
+anomaly_stops   = [s for s in stops  if s["type"] == TYPE_ANOMALY and special_label(s["date"], s["start"]) not in SKIP_LABELS]
+anomaly_drives  = [d for d in drives if d["type"] == TYPE_ANOMALY and special_label(d["date"], d["start"]) not in SKIP_LABELS]
 
 total_unload_h    = sum(s["duration"].total_seconds() for s in unload_stops)    / 3600
 total_transport_h = sum(s["duration"].total_seconds() for s in transport_stops) / 3600
