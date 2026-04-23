@@ -328,9 +328,18 @@ if btn_analyze and uploaded_ituran is not None:
                     _vac, _fh, _eh, friday_end, friday_is_workday
                 ) in {"חופשה", "סוף שבוע/חג"}
             )
+            _special_labels = {}
+            for _item in stops + drives:
+                _sp = get_special_label(
+                    _item["date"], _item["start"],
+                    _vac, _fh, _eh, friday_end, friday_is_workday
+                )
+                if _sp:
+                    _special_labels[(_item["date"], _item["start"])] = _sp
             buf = build_excel_buffer(
                 stops, drives, summary, uploaded_ituran.name,
-                threshold, work_start, work_end, skip_dates=_skip,
+                threshold, work_start, work_end,
+                skip_dates=_skip, special_labels=_special_labels,
             )
             st.session_state["analysis_result"] = {
                 "buf": buf, "summary": summary,

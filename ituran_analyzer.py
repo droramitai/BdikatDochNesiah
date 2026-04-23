@@ -243,16 +243,32 @@ BODY_FONT = Font(name="Arial", size=10)
 CENTER    = Alignment(horizontal="center", vertical="center")
 STRIPE    = PatternFill("solid", start_color="D9E1F2", end_color="D9E1F2")
 
-FILL_UNLOAD    = PatternFill("solid", start_color="FFE699", end_color="FFE699")
+FILL_UNLOAD    = PatternFill("solid", start_color="DCE8F5", end_color="DCE8F5")
 FILL_TRANSPORT = PatternFill("solid", start_color="C6EFCE", end_color="C6EFCE")
-FILL_PARKING   = PatternFill("solid", start_color="BFBFBF", end_color="BFBFBF")
+FILL_PARKING   = PatternFill("solid", start_color="FAFADC", end_color="FAFADC")
 FILL_ANOMALY   = PatternFill("solid", start_color="FFC7CE", end_color="FFC7CE")
+FILL_WEEKEND   = PatternFill("solid", start_color="F0E8FF", end_color="F0E8FF")
+FILL_VACATION  = PatternFill("solid", start_color="E8FFF0", end_color="E8FFF0")
 
 TYPE_FILL = {
     TYPE_UNLOAD:    FILL_UNLOAD,
     TYPE_TRANSPORT: FILL_TRANSPORT,
     TYPE_PARKING:   FILL_PARKING,
     TYPE_ANOMALY:   FILL_ANOMALY,
+}
+
+# Display labels matching the screen
+DISPLAY_LABELS = {
+    ("stop",  TYPE_UNLOAD):    "עבודה",
+    ("stop",  TYPE_TRANSPORT): "עצירת ביניים",
+    ("stop",  TYPE_PARKING):   "חניה",
+    ("stop",  TYPE_ANOMALY):   "חריג",
+    ("drive", TYPE_TRANSPORT): "נסיעה",
+    ("drive", TYPE_ANOMALY):   "נסיעה",
+}
+SPECIAL_FILL = {
+    "סוף שבוע/חג": FILL_WEEKEND,
+    "חופשה":       FILL_VACATION,
 }
 
 
@@ -292,6 +308,7 @@ def write_summary_sheet(wb, summary: dict, skip_dates: frozenset = frozenset()):
     from openpyxl.utils import get_column_letter
     ws = wb.active
     ws.title = "סיכום"
+    ws.sheet_view.rightToLeft = True
     ws.row_dimensions[1].height = 22
 
     # RTL order: col A appears RIGHTMOST on screen
@@ -358,9 +375,11 @@ def write_summary_sheet(wb, summary: dict, skip_dates: frozenset = frozenset()):
                     ).number_format = "0.00"
 
 
-def write_detail_sheet(wb, stops: list[dict], drives: list[dict]):
+def write_detail_sheet(wb, stops: list[dict], drives: list[dict],
+                        special_labels: dict = {}):
     from openpyxl.utils import get_column_letter
     ws = wb.create_sheet("פירוט עצירות")
+    ws.sheet_view.rightToLeft = True
     ws.row_dimensions[1].height = 22
 
     # RTL order: col A = rightmost on screen
@@ -387,8 +406,15 @@ def write_detail_sheet(wb, stops: list[dict], drives: list[dict]):
     r = 2
     for kind, item in all_items:
         mins     = int(item["duration"].total_seconds() / 60)
-        label    = item["type"]
         day_name = HEBREW_DAYS[item["date"].weekday()]
+
+        sp_lbl = special_labels.get((item["date"], item["start"]))
+        if sp_lbl:
+            label = sp_lbl
+            fill  = SPECIAL_FILL.get(sp_lbl, None)
+        else:
+            label = DISPLAY_LABELS.get((kind, item["type"]), item["type"])
+            fill  = TYPE_FILL.get(item["type"], None)
 
         if kind == "drive":
             frm  = item.get("from_address", "") or ""
@@ -407,7 +433,6 @@ def write_detail_sheet(wb, stops: list[dict], drives: list[dict]):
             label,
             addr,
         ]
-        fill = TYPE_FILL.get(label, None)
         for col, val in enumerate(row_data, 1):
             style_body(ws.cell(row=r, column=col, value=val), fill)
         r += 1
@@ -440,6 +465,7 @@ def write_anomaly_sheet(wb, stops: list[dict], drives: list[dict],
         return
 
     ws = wb.create_sheet("חריגים - לבירור")
+    ws.sheet_view.rightToLeft = True
     ws.row_dimensions[1].height = 22
 
     # RTL order: col A = rightmost
@@ -533,12 +559,13 @@ def _parse_and_classify(filepath_or_buffer, threshold_minutes, work_start, work_
 
 def build_excel_buffer(stops, drives, summary, filename,
                        threshold_minutes, work_start, work_end,
-                       skip_dates: frozenset = frozenset()):
+                       skip_dates: frozenset = frozenset(),
+                       special_labels: dict = {}):
     """Build Excel workbook from pre-parsed data. Returns BytesIO."""
     import io
     wb = openpyxl.Workbook()
     write_summary_sheet(wb, summary, skip_dates)
-    write_detail_sheet(wb, stops, drives)
+    write_detail_sheet(wb, stops, drives, special_labels)
     write_anomaly_sheet(wb, stops, drives, work_start, work_end)
     write_params_sheet(wb, filename, threshold_minutes, work_start, work_end, stops, drives)
     buf = io.BytesIO()
