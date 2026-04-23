@@ -308,8 +308,29 @@ if uploaded_ituran is None:
 if btn_analyze and uploaded_ituran is not None:
     with st.spinner("מנתח את הדוח…"):
         try:
-            buf, summary, stops, drives = analyze_to_buffer(
-                uploaded_ituran, uploaded_ituran.name, threshold, work_start, work_end
+            from ituran_analyzer import _parse_and_classify, build_excel_buffer
+            stops, drives, summary = _parse_and_classify(
+                uploaded_ituran, threshold, work_start, work_end
+            )
+            # Compute non-work dates for Excel summary filtering
+            _vac = frozenset(st.session_state.get("vacation_dates_list", []))
+            _all_dates = set(s["date"] for s in stops) | set(d["date"] for d in drives)
+            _years = set(d.year for d in _all_dates) or {date.today().year}
+            _fh, _eh = frozenset(), frozenset()
+            if include_holidays:
+                for yr in _years:
+                    fh, eh = fetch_israel_holidays(yr)
+                    _fh |= fh; _eh |= eh
+            _skip = frozenset(
+                d for d in _all_dates
+                if get_special_label(
+                    d, datetime(d.year, d.month, d.day, 0, 0),
+                    _vac, _fh, _eh, friday_end, friday_is_workday
+                ) in {"חופשה", "סוף שבוע/חג"}
+            )
+            buf = build_excel_buffer(
+                stops, drives, summary, uploaded_ituran.name,
+                threshold, work_start, work_end, skip_dates=_skip,
             )
             st.session_state["analysis_result"] = {
                 "buf": buf, "summary": summary,

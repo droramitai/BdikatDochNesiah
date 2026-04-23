@@ -288,11 +288,10 @@ def set_col(ws, col, header, width):
 HEBREW_DAYS = {0: "שני", 1: "שלישי", 2: "רביעי", 3: "חמישי", 4: "שישי", 5: "שבת", 6: "ראשון"}
 
 
-def write_summary_sheet(wb, summary: dict):
+def write_summary_sheet(wb, summary: dict, skip_dates: frozenset = frozenset()):
     from openpyxl.utils import get_column_letter
     ws = wb.active
     ws.title = "סיכום"
-    ws.sheet_view.rightToLeft = True
     ws.row_dimensions[1].height = 22
 
     # RTL order: col A appears RIGHTMOST on screen
@@ -311,7 +310,10 @@ def write_summary_sheet(wb, summary: dict):
     for col, (header, width) in enumerate(cols, 1):
         set_col(ws, col, header, width)
 
-    sorted_keys = sorted(summary.keys(), key=lambda k: (k[1], k[0]))
+    sorted_keys = sorted(
+        (k for k in summary.keys() if k[1] not in skip_dates),
+        key=lambda k: (k[1], k[0])
+    )
     last_data_row = 1
     for r, key in enumerate(sorted_keys, 2):
         driver, dt = key
@@ -359,7 +361,6 @@ def write_summary_sheet(wb, summary: dict):
 def write_detail_sheet(wb, stops: list[dict], drives: list[dict]):
     from openpyxl.utils import get_column_letter
     ws = wb.create_sheet("פירוט עצירות")
-    ws.sheet_view.rightToLeft = True
     ws.row_dimensions[1].height = 22
 
     # RTL order: col A = rightmost on screen
@@ -439,7 +440,6 @@ def write_anomaly_sheet(wb, stops: list[dict], drives: list[dict],
         return
 
     ws = wb.create_sheet("חריגים - לבירור")
-    ws.sheet_view.rightToLeft = True
     ws.row_dimensions[1].height = 22
 
     # RTL order: col A = rightmost
@@ -522,39 +522,47 @@ def write_params_sheet(wb, filepath: str, threshold_minutes: int,
 
 # ─── main entry ──────────────────────────────────────────────────────────────
 
-def _build_workbook(filepath_or_buffer, filename: str,
-                    threshold_minutes: int,
-                    work_start: int = DEFAULT_WORK_START,
-                    work_end:   int = DEFAULT_WORK_END):
-    """Core logic: parse → classify → build workbook. Returns (wb, summary, stops, drives)."""
+def _parse_and_classify(filepath_or_buffer, threshold_minutes, work_start, work_end):
+    """Parse file and classify events. Returns (stops, drives, summary)."""
     threshold = timedelta(minutes=threshold_minutes)
     events    = parse_events(filepath_or_buffer)
     stops, drives = build_periods(events, threshold, work_start, work_end)
     summary   = aggregate(stops, drives)
+    return stops, drives, summary
 
+
+def build_excel_buffer(stops, drives, summary, filename,
+                       threshold_minutes, work_start, work_end,
+                       skip_dates: frozenset = frozenset()):
+    """Build Excel workbook from pre-parsed data. Returns BytesIO."""
+    import io
     wb = openpyxl.Workbook()
-    write_summary_sheet(wb, summary)
+    write_summary_sheet(wb, summary, skip_dates)
     write_detail_sheet(wb, stops, drives)
     write_anomaly_sheet(wb, stops, drives, work_start, work_end)
     write_params_sheet(wb, filename, threshold_minutes, work_start, work_end, stops, drives)
-    return wb, summary, stops, drives
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return buf
 
 
 def analyze_to_buffer(file_buffer, filename: str = "report.xlsx",
                       threshold_minutes: int = DEFAULT_THRESHOLD,
                       work_start: int = DEFAULT_WORK_START,
-                      work_end:   int = DEFAULT_WORK_END):
+                      work_end:   int = DEFAULT_WORK_END,
+                      skip_dates: frozenset = frozenset()):
     """
     Analyse an in-memory file buffer (e.g. from Streamlit file_uploader).
     Returns (BytesIO, summary_dict, stops, drives).
     """
-    import io
-    wb, summary, stops, drives = _build_workbook(
-        file_buffer, filename, threshold_minutes, work_start, work_end
+    stops, drives, summary = _parse_and_classify(
+        file_buffer, threshold_minutes, work_start, work_end
     )
-    buf = io.BytesIO()
-    wb.save(buf)
-    buf.seek(0)
+    buf = build_excel_buffer(
+        stops, drives, summary, filename,
+        threshold_minutes, work_start, work_end, skip_dates
+    )
     return buf, summary, stops, drives
 
 
