@@ -550,24 +550,25 @@ day_map_s: dict = {}
 for row in detail_rows:
     key = (row["שם עובד"], row["תאריך"])
     if key not in day_map_s:
+        d_obj = row["_date_obj"]
+        # classify the day directly by date (not through event labels, to avoid ordering bugs)
+        day_sp = special_label(d_obj, datetime(d_obj.year, d_obj.month, d_obj.day, 0, 0))
+        day_type = day_sp if day_sp in SKIP_LABELS else "יום עבודה"
         day_map_s[key] = {
-            "שם עובד":       row["שם עובד"],
-            "תאריך":         row["תאריך"],
-            "יום":           row["יום"],
-            "עבודה (ש')":    0.0,
+            "שם עובד":        row["שם עובד"],
+            "תאריך":          row["תאריך"],
+            "יום":            row["יום"],
+            "עבודה (ש')":     0.0,
             "נסיעה נטו (ש')": 0.0,
-            "סוג יום":       "",
-            "_date_obj":     row["_date_obj"],
+            "סוג יום":        day_type,
+            "_date_obj":      d_obj,
         }
-    lbl = row["סיווג"]
-    if lbl in SKIP_LABELS:
-        day_map_s[key]["סוג יום"] = lbl
-    elif lbl == "עבודה":
-        day_map_s[key]["עבודה (ש')"]    = round(day_map_s[key]["עבודה (ש')"]    + row["נטו (ש')"], 2)
-    elif lbl in ("נסיעה", "עצירת ביניים"):
-        day_map_s[key]["נסיעה נטו (ש')"] = round(day_map_s[key]["נסיעה נטו (ש')"] + row["נטו (ש')"], 2)
-    if not day_map_s[key]["סוג יום"]:
-        day_map_s[key]["סוג יום"] = "יום עבודה"
+    if day_map_s[key]["סוג יום"] == "יום עבודה":
+        lbl = row["סיווג"]
+        if lbl == "עבודה":
+            day_map_s[key]["עבודה (ש')"]     = round(day_map_s[key]["עבודה (ש')"]     + row["נטו (ש')"], 2)
+        elif lbl in ("נסיעה", "עצירת ביניים"):
+            day_map_s[key]["נסיעה נטו (ש')"] = round(day_map_s[key]["נסיעה נטו (ש')"] + row["נטו (ש')"], 2)
 
 # רק ימי עבודה בטבלת הסיכום
 summary_rows = sorted(
