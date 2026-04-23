@@ -567,6 +567,14 @@ st.dataframe(
     df_day.style.apply(highlight_day, axis=1)
                .format({"עבודה (ש')": "{:.2f}", "נסיעה נטו (ש')": "{:.2f}"}),
     use_container_width=True, hide_index=True,
+    column_config={
+        "שם עובד":        st.column_config.TextColumn(width="small"),
+        "תאריך":          st.column_config.TextColumn(width="small"),
+        "יום":            st.column_config.TextColumn(width="small"),
+        "עבודה (ש')":     st.column_config.NumberColumn(width="small"),
+        "נסיעה נטו (ש')": st.column_config.NumberColumn(width="small"),
+        "סוג יום":        st.column_config.TextColumn(width="small"),
+    },
 )
 
 # ─── detail table (collapsible) ───────────────────────────────────────────────
@@ -605,6 +613,18 @@ with st.expander("📋 פירוט מלא נסיעות ועצירות", expanded=
                  .apply(highlight_detail, axis=1)
                  .format({"משך (ש')": "{:.2f}", "קיזוז (ש')": "{:.2f}", "נטו (ש')": "{:.2f}"}),
         use_container_width=True, hide_index=True,
+        column_config={
+            "כתובת / מסלול": st.column_config.TextColumn(width="large"),
+            "נטו (ש')":      st.column_config.NumberColumn(width="small"),
+            "קיזוז (ש')":    st.column_config.NumberColumn(width="small"),
+            "משך (ש')":      st.column_config.NumberColumn(width="small"),
+            "סיווג":         st.column_config.TextColumn(width="small"),
+            "שעת סיום":      st.column_config.TextColumn(width="small"),
+            "שעת התחלה":     st.column_config.TextColumn(width="small"),
+            "יום":           st.column_config.TextColumn(width="small"),
+            "תאריך":         st.column_config.TextColumn(width="small"),
+            "שם עובד":       st.column_config.TextColumn(width="small"),
+        },
     )
     st.caption(
         "🔵 כחול=עבודה  🟢 ירוק=נסיעה/עצירת ביניים  🟡 צהוב=חניה  "
@@ -643,7 +663,21 @@ if anomaly_stops or anomaly_drives:
             "תאריך":         item["date"].strftime("%d/%m/%Y"),
         })
 
-    st.dataframe(pd.DataFrame(anom_rows), use_container_width=True, hide_index=True)
+    ANOM_COLS = ["תאריך", "יום", "שעת התחלה", "שעת סיום", "משך", "סוג", "כתובת / מסלול"]
+    st.dataframe(
+        pd.DataFrame(anom_rows)[ANOM_COLS],
+        use_container_width=True,
+        hide_index=True,
+        column_config={
+            "תאריך":         st.column_config.TextColumn("תאריך",        width="small"),
+            "יום":           st.column_config.TextColumn("יום",          width="small"),
+            "שעת התחלה":     st.column_config.TextColumn("שעת התחלה",   width="small"),
+            "שעת סיום":      st.column_config.TextColumn("שעת סיום",    width="small"),
+            "משך":           st.column_config.TextColumn("משך",          width="small"),
+            "סוג":           st.column_config.TextColumn("סוג",          width="small"),
+            "כתובת / מסלול": st.column_config.TextColumn("כתובת / מסלול", width="large"),
+        },
+    )
     st.caption("הפעילויות הנ\"ל התרחשו מחוץ לשעות העבודה. יש לבדוק מול העובד.")
 
 # ─── download ────────────────────────────────────────────────────────────────
