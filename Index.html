@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="he">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <title>SO EL - סיורי שטח</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: #f5f5f5;
+      color: #333;
+      direction: rtl;
+    }
+
+    .header {
+      background: #c0392b;
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .header-title { font-size: 16px; font-weight: bold; color: white; }
+    .header-user  { font-size: 13px; color: rgba(255,255,255,0.85); }
+
+    .screen { display: none; }
+    .screen.active { display: block; }
+
+    /* LOGIN — full screen on mobile */
+    .login-wrap {
+      min-height: 100vh;
+      min-height: 100dvh;
+      display: flex;
+      align-items: stretch;
+      justify-content: center;
+      background: white;
+    }
+
+    .login-box {
+      background: white;
+      padding: 0 28px;
+      width: 100%;
+      max-width: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    /* On larger screens restore the card look */
+    @media (min-width: 500px) {
+      .login-wrap {
+        background: #f5f5f5;
+        align-items: center;
+        padding: 40px 20px;
+      }
+      .login-box {
+        border-radius: 16px;
+        padding: 32px 24px;
+        max-width: 400px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+        display: block;
+      }
+    }
+
+    .login-logo { text-align: center; margin-bottom: 28px; }
+    .login-logo img { max-width: 200px; }
+
+    h2 { font-size: 18px; margin-bottom: 16px; color: #333; }
+
+    .form-group { margin-bottom: 14px; }
+
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 5px;
+      color: #555;
+    }
+
+    input, select, textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1.5px solid #ddd;
+      border-radius: 8px;
+      font-size: 14px;
+      direction: rtl;
+      background: white;
+      font-family: inherit;
+    }
+
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: #c0392b;
+    }
+
+    textarea { resize: vertical; }
+
+    .btn {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: bold;
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    .btn-primary { background: #c0392b; color: white; }
+    .btn-success { background: #27ae60; color: white; }
+    .btn-outline { background: white; color: #333; border: 1.5px solid #ddd; }
+
+    .error-msg { color: #c0392b; font-size: 13px; margin-top: 8px; min-height: 18px; }
+
+    /* FORM */
+    .form-wrap { max-width: 620px; margin: 0 auto; padding: 14px; }
+
+    .category {
+      background: white;
+      border-radius: 12px;
+      margin-bottom: 10px;
+      overflow: hidden;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    }
+
+    .cat-header {
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .cat-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 15px;
+      font-weight: bold;
+    }
+
+    .cat-icon {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 17px;
+    }
+
+    .c1 .cat-icon { background: #fff3e0; }
+    .c2 .cat-icon { background: #e8f5e9; }
+    .c3 .cat-icon { background: #e3f2fd; }
+    .c4 .cat-icon { background: #fce4ec; }
+    .c5 .cat-icon { background: #f3e5f5; }
+    .c6 .cat-icon { background: #e0f2f1; }
+
+    .chevron { font-size: 12px; color: #aaa; transition: transform 0.25s; }
+    .category.open .chevron { transform: rotate(180deg); }
+
+    .cat-body {
+      display: none;
+      padding: 0 16px 16px;
+      border-top: 1px solid #f0f0f0;
+    }
+
+    .category.open .cat-body { display: block; }
+    .cat-body .form-group:first-child { margin-top: 14px; }
+
+    /* WORKERS */
+    .worker-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
+    .worker-row input { flex: 1; }
+
+    .btn-icon {
+      width: 36px; height: 36px; min-width: 36px;
+      border: none; border-radius: 8px;
+      font-size: 20px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-family: inherit;
+    }
+
+    .btn-add-worker {
+      width: 100%; padding: 8px;
+      background: #e8f5e9; color: #27ae60;
+      border: none; border-radius: 8px;
+      font-size: 14px; font-weight: bold;
+      cursor: pointer; font-family: inherit;
+    }
+
+    .btn-rem { background: #fce4ec; color: #c0392b; }
+
+    /* GPS */
+    .gps-row { display: flex; gap: 8px; align-items: center; }
+    .gps-row input { flex: 1; }
+
+    .btn-gps {
+      padding: 10px 14px; background: #2980b9; color: white;
+      border: none; border-radius: 8px; cursor: pointer;
+      white-space: nowrap; font-size: 13px; font-family: inherit;
+    }
+
+    /* CHECKBOXES */
+    .chk-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 9px 0; border-bottom: 1px solid #f5f5f5;
+    }
+    .chk-item:last-child { border-bottom: none; }
+    .chk-item input[type="checkbox"] { width: 20px; height: 20px; min-width: 20px; cursor: pointer; }
+    .chk-item label { margin: 0; font-weight: normal; cursor: pointer; }
+
+    /* RADIO */
+    .radio-group { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 4px; }
+    .radio-item { display: flex; align-items: center; gap: 6px; }
+    .radio-item input { width: auto; min-width: auto; }
+    .radio-item label { margin: 0; font-weight: normal; cursor: pointer; }
+
+    /* PHOTOS */
+    .photo-area {
+      border: 2px dashed #ddd; border-radius: 10px;
+      padding: 22px; text-align: center; cursor: pointer; background: #fafafa;
+    }
+    .photo-area:active { background: #f0f0f0; }
+
+    .photo-preview { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+
+    .photo-thumb { position: relative; width: 76px; height: 76px; }
+    .photo-thumb img { width: 100%; height: 100%; object-fit: cover; border-radius: 8px; }
+    .rm-photo {
+      position: absolute; top: -6px; left: -6px;
+      width: 20px; height: 20px;
+      background: #c0392b; color: white;
+      border-radius: 50%; border: none;
+      font-size: 13px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    /* REVIEW */
+    .review-wrap { max-width: 620px; margin: 0 auto; padding: 14px; }
+
+    .review-card {
+      background: white; border-radius: 12px;
+      padding: 16px; margin-bottom: 10px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    }
+
+    .review-card h3 {
+      font-size: 14px; color: #888; margin-bottom: 10px;
+      padding-bottom: 8px; border-bottom: 1px solid #eee;
+    }
+
+    .review-row {
+      display: flex; justify-content: space-between;
+      align-items: flex-start; padding: 5px 0;
+      font-size: 14px; gap: 10px;
+    }
+
+    .review-row .lbl { color: #999; white-space: nowrap; }
+    .review-row .val { font-weight: 600; text-align: left; word-break: break-word; max-width: 65%; }
+
+    /* BOTTOM BAR */
+    .bottom-bar {
+      position: sticky; bottom: 0;
+      background: white; padding: 10px 16px;
+      box-shadow: 0 -2px 8px rgba(0,0,0,0.1);
+      display: flex; gap: 10px; z-index: 50;
+    }
+
+    .bottom-bar .btn { margin: 0; }
+
+    /* SUCCESS */
+    .success-wrap { text-align: center; padding: 70px 24px; max-width: 380px; margin: 0 auto; }
+    .success-icon { font-size: 72px; margin-bottom: 16px; }
+    .success-wrap h2 { font-size: 22px; color: #27ae60; margin-bottom: 8px; }
+    .success-wrap p  { color: #888; margin-bottom: 28px; }
+
+    /* LOADING */
+    .loading-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.45); z-index: 999;
+      align-items: center; justify-content: center;
+    }
+    .loading-overlay.on { display: flex; }
+
+    .loading-box { background: white; padding: 28px 36px; border-radius: 14px; text-align: center; }
+
+    .spinner {
+      width: 40px; height: 40px;
+      border: 4px solid #eee; border-top-color: #c0392b;
+      border-radius: 50%; animation: spin 0.75s linear infinite;
+      margin: 0 auto 12px;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .req::after { content: ' *'; color: #c0392b; }
+    .note { font-size: 12px; color: #aaa; margin-bottom: 10px; }
+    .spacer { height: 80px; }
+  </style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div class="loading-overlay" id="loading">
+  <div class="loading-box">
+    <div class="spinner"></div>
+    <p>אנא המתן...</p>
+  </div>
+</div>
+
+<!-- ═══════════════════════ LOGIN ═══ -->
+<div id="sLogin" class="screen active">
+  <div class="login-wrap">
+    <div class="login-box">
+      <div class="login-logo">
+        <img src="https://i.ibb.co/v4qRgpjz/So-EL.png" alt="SO EL">
+      </div>
+      <h2>כניסה למערכת</h2>
+      <div class="form-group">
+        <label for="loginEmail">דוא"ל</label>
+        <input type="email" id="loginEmail" placeholder="your@email.com" autocomplete="email">
+      </div>
+      <div class="form-group">
+        <label for="loginPass">סיסמה</label>
+        <input type="password" id="loginPass" placeholder="••••••••" autocomplete="current-password">
+      </div>
+      <div class="error-msg" id="loginErr"></div>
+      <br>
+      <button class="btn btn-primary" onclick="doLogin()">כניסה</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════ FORM ════ -->
+<div id="sForm" class="screen">
+  <div class="header">
+    <div class="header-title">דוח סיור שטח</div>
+    <div class="header-user" id="headerUser"></div>
+  </div>
+
+  <div class="form-wrap">
+
+    <!-- 1 -->
+    <div class="category c1" id="c1">
+      <div class="cat-header" onclick="toggle('c1')">
+        <div class="cat-title"><div class="cat-icon">📋</div>פרטי הסיור</div>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="cat-body">
+        <div class="form-group">
+          <label class="req">תאריך סיור</label>
+          <input type="date" id="fDate">
+        </div>
+        <div class="form-group">
+          <label class="req">שם האתר / לקוח</label>
+          <input type="text" id="fSite" placeholder="שם האתר">
+        </div>
+        <div class="form-group">
+          <label class="req">שם המדריך / ראש צוות</label>
+          <input type="text" id="fSupervisor" placeholder="שם מלא">
+        </div>
+        <div class="form-group">
+          <label>סוג סיור</label>
+          <select id="fTourType">
+            <option value="">-- בחר --</option>
+            <option>סיור שוטף</option>
+            <option>סיור בטיחות</option>
+            <option>סיור חירום</option>
+            <option>סיור ביקורת</option>
+            <option>אחר</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>מיקום GPS</label>
+          <div class="gps-row">
+            <input type="text" id="fGPS" placeholder="לחץ לקבלת מיקום" readonly>
+            <button class="btn-gps" id="gpsBtn" onclick="getGPS()">📍 מיקום</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2 -->
+    <div class="category c2" id="c2">
+      <div class="cat-header" onclick="toggle('c2')">
+        <div class="cat-title"><div class="cat-icon">👷</div>עובדים בשטח</div>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="cat-body">
+        <p class="note">הוסף את שמות העובדים שנכחו בסיור</p>
+        <div id="workersList">
+          <div class="worker-row">
+            <input type="text" placeholder="שם עובד" class="wname">
+            <button class="btn-icon btn-rem" onclick="remWorker(this)">−</button>
+          </div>
+        </div>
+        <button class="btn-add-worker" onclick="addWorker()">+ הוסף עובד</button>
+        <div class="form-group" style="margin-top:12px;">
+          <label>סה"כ כוח אדם באתר</label>
+          <input type="number" id="fTotalWorkers" placeholder="מספר" min="0">
+        </div>
+      </div>
+    </div>
+
+    <!-- 3 -->
+    <div class="category c3" id="c3">
+      <div class="cat-header" onclick="toggle('c3')">
+        <div class="cat-title"><div class="cat-icon">🚛</div>ציוד ורכבים</div>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="cat-body">
+        <div class="form-group">
+          <label>מספר רכבים באתר</label>
+          <input type="number" id="fVehicles" placeholder="0" min="0">
+        </div>
+        <div class="form-group">
+          <label>סוגי ציוד בשימוש</label>
+          <div class="chk-item"><input type="checkbox" id="eq1" value="מלגזה"><label for="eq1">מלגזה</label></div>
+          <div class="chk-item"><input type="checkbox" id="eq2" value="עגורן"><label for="eq2">עגורן</label></div>
+          <div class="chk-item"><input type="checkbox" id="eq3" value="רכב משא"><label for="eq3">רכב משא</label></div>
+          <div class="chk-item"><input type="checkbox" id="eq4" value="ציוד חשמלי"><label for="eq4">ציוד חשמלי</label></div>
+          <div class="chk-item"><input type="checkbox" id="eq5" value="אחר"><label for="eq5">אחר</label></div>
+        </div>
+        <div class="form-group">
+          <label>הערות ציוד</label>
+          <textarea id="fEqNotes" rows="2" placeholder="פרט ציוד נוסף..."></textarea>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4 -->
+    <div class="category c4" id="c4">
+      <div class="cat-header" onclick="toggle('c4')">
+        <div class="cat-title"><div class="cat-icon">⛑️</div>בטיחות</div>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="cat-body">
+        <p class="note">סמן פריטים שנבדקו ותקינים</p>
+        <div class="chk-item"><input type="checkbox" id="s1"><label for="s1">ציוד מגן אישי (PPE) תקין</label></div>
+        <div class="chk-item"><input type="checkbox" id="s2"><label for="s2">שילוט בטיחות במקום</label></div>
+        <div class="chk-item"><input type="checkbox" id="s3"><label for="s3">אמצעי כיבוי אש נגישים</label></div>
+        <div class="chk-item"><input type="checkbox" id="s4"><label for="s4">נתיבי מילוט פנויים</label></div>
+        <div class="chk-item"><input type="checkbox" id="s5"><label for="s5">ציוד חשמלי תקין</label></div>
+        <div class="chk-item"><input type="checkbox" id="s6"><label for="s6">הדרכת בטיחות בוצעה</label></div>
+        <div class="form-group" style="margin-top:12px;">
+          <label>רמת בטיחות כללית</label>
+          <div class="radio-group">
+            <div class="radio-item"><input type="radio" name="safetyLvl" id="sl1" value="גבוהה"><label for="sl1">גבוהה ✅</label></div>
+            <div class="radio-item"><input type="radio" name="safetyLvl" id="sl2" value="בינונית"><label for="sl2">בינונית ⚠️</label></div>
+            <div class="radio-item"><input type="radio" name="safetyLvl" id="sl3" value="נמוכה"><label for="sl3">נמוכה ❌</label></div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>חריגות / אירועים</label>
+          <textarea id="fSafetyNotes" rows="3" placeholder="תאר חריגות אם היו..."></textarea>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5 -->
+    <div class="category c5" id="c5">
+      <div class="cat-header" onclick="toggle('c5')">
+        <div class="cat-title"><div class="cat-icon">📝</div>ממצאים ומשימות</div>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="cat-body">
+        <div class="form-group">
+          <label>סטטוס הפרויקט</label>
+          <select id="fStatus">
+            <option value="">-- בחר --</option>
+            <option>על המסלול</option>
+            <option>עיכוב קל</option>
+            <option>עיכוב משמעותי</option>
+            <option>הושלם</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>ממצאים עיקריים</label>
+          <textarea id="fFindings" rows="4" placeholder="תאר את הממצאים מהסיור..."></textarea>
+        </div>
+        <div class="form-group">
+          <label>משימות לטיפול</label>
+          <textarea id="fActions" rows="3" placeholder="פרט משימות שיש לטפל..."></textarea>
+        </div>
+        <div class="form-group">
+          <label>דחיפות</label>
+          <div class="radio-group">
+            <div class="radio-item"><input type="radio" name="urgency" id="u1" value="נמוכה"><label for="u1">נמוכה</label></div>
+            <div class="radio-item"><input type="radio" name="urgency" id="u2" value="בינונית"><label for="u2">בינונית</label></div>
+            <div class="radio-item"><input type="radio" name="urgency" id="u3" value="גבוהה"><label for="u3">גבוהה 🔴</label></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 6 -->
+    <div class="category c6" id="c6">
+      <div class="cat-header" onclick="toggle('c6')">
+        <div class="cat-title"><div class="cat-icon">📸</div>תמונות ותיעוד</div>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="cat-body">
+        <div class="photo-area" onclick="document.getElementById('photoInput').click()">
+          <div style="font-size:34px;">📷</div>
+          <div style="font-size:14px;color:#666;margin-top:6px;">לחץ להוספת תמונות</div>
+          <div style="font-size:12px;color:#aaa;">ניתן לבחור מספר תמונות</div>
+        </div>
+        <input type="file" id="photoInput" accept="image/*" multiple capture="environment"
+               style="display:none" onchange="handlePhotos(this)">
+        <div class="photo-preview" id="photoPreview"></div>
+        <div class="form-group" style="margin-top:12px;">
+          <label>הערות כלליות</label>
+          <textarea id="fNotes" rows="4" placeholder="הערות נוספות..."></textarea>
+        </div>
+        <div class="form-group">
+          <label>שם מגיש הדוח</label>
+          <input type="text" id="fReporter" placeholder="שם מלא">
+        </div>
+      </div>
+    </div>
+
+    <div class="spacer"></div>
+  </div>
+
+  <div class="bottom-bar">
+    <button class="btn btn-outline" onclick="confirmClear()" style="flex:0 0 72px;font-size:13px;">נקה</button>
+    <button class="btn btn-primary" onclick="goReview()" style="flex:1;">סקירה לפני שליחה ←</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════ REVIEW ═══ -->
+<div id="sReview" class="screen">
+  <div class="header">
+    <div class="header-title">סקירה לפני שליחה</div>
+    <div class="header-user" id="headerUser2"></div>
+  </div>
+  <div class="review-wrap">
+    <div id="reviewContent"></div>
+    <div class="spacer"></div>
+  </div>
+  <div class="bottom-bar">
+    <button class="btn btn-outline" onclick="showScreen('sForm')" style="flex:0 0 72px;font-size:13px;">← חזור</button>
+    <button class="btn btn-success" onclick="doSubmit()" style="flex:1;">שלח דוח ✓</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════ SUCCESS ══ -->
+<div id="sSuccess" class="screen">
+  <div class="header">
+    <div class="header-title">SO EL - סיורי שטח</div>
+  </div>
+  <div class="success-wrap">
+    <div class="success-icon">✅</div>
+    <h2>הדוח נשלח בהצלחה!</h2>
+    <p>הנתונים נשמרו במערכת</p>
+    <button class="btn btn-primary" onclick="newForm()">דוח חדש</button>
+  </div>
+</div>
+
+<script>
+  var currentUser = null;
+  var photos = [];
+
+  window.onload = function() {
+    document.getElementById('fDate').value = new Date().toISOString().split('T')[0];
+  };
+
+  function showScreen(id) {
+    document.querySelectorAll('.screen').forEach(function(s) { s.classList.remove('active'); });
+    document.getElementById(id).classList.add('active');
+    window.scrollTo(0, 0);
+  }
+
+  function setLoading(on) {
+    document.getElementById('loading').classList[on ? 'add' : 'remove']('on');
+  }
+
+  /* LOGIN */
+  function doLogin() {
+    var email = document.getElementById('loginEmail').value.trim();
+    var pass  = document.getElementById('loginPass').value;
+    var err   = document.getElementById('loginErr');
+    err.textContent = '';
+    if (!email || !pass) { err.textContent = 'נא למלא דוא"ל וסיסמה'; return; }
+    setLoading(true);
+    google.script.run
+      .withSuccessHandler(function(r) {
+        setLoading(false);
+        if (r.success) {
+          currentUser = r.user;
+          var name = r.user.name || r.user.email;
+          document.getElementById('fReporter').value = name;
+          document.getElementById('headerUser').textContent  = name;
+          document.getElementById('headerUser2').textContent = name;
+          showScreen('sForm');
+        } else {
+          err.textContent = r.message || 'פרטים שגויים';
+        }
+      })
+      .withFailureHandler(function(e) {
+        setLoading(false);
+        err.textContent = 'שגיאת שרת: ' + e.message;
+      })
+      .authenticateUser(email, pass);
+  }
+
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && document.getElementById('sLogin').classList.contains('active')) doLogin();
+  });
+
+  /* CATEGORIES */
+  function toggle(id) {
+    document.getElementById(id).classList.toggle('open');
+  }
+
+  /* WORKERS */
+  function addWorker() {
+    var list = document.getElementById('workersList');
+    var row  = document.createElement('div');
+    row.className = 'worker-row';
+    row.innerHTML = '<input type="text" placeholder="שם עובד" class="wname">' +
+                    '<button class="btn-icon btn-rem" onclick="remWorker(this)">−</button>';
+    list.appendChild(row);
+    row.querySelector('input').focus();
+  }
+
+  function remWorker(btn) {
+    var rows = document.querySelectorAll('.worker-row');
+    if (rows.length > 1) btn.closest('.worker-row').remove();
+    else btn.closest('.worker-row').querySelector('input').value = '';
+  }
+
+  function getWorkers() {
+    return Array.from(document.querySelectorAll('.wname'))
+      .map(function(i) { return i.value.trim(); })
+      .filter(function(v) { return v; });
+  }
+
+  /* GPS */
+  function getGPS() {
+    if (!navigator.geolocation) { alert('GPS אינו נתמך'); return; }
+    var btn = document.getElementById('gpsBtn');
+    btn.textContent = '⏳...';
+    btn.disabled = true;
+    navigator.geolocation.getCurrentPosition(
+      function(pos) {
+        document.getElementById('fGPS').value =
+          pos.coords.latitude.toFixed(6) + ', ' + pos.coords.longitude.toFixed(6);
+        btn.textContent = '📍 מיקום';
+        btn.disabled = false;
+      },
+      function(e) {
+        alert('לא ניתן לקבל מיקום: ' + e.message);
+        btn.textContent = '📍 מיקום';
+        btn.disabled = false;
+      },
+      { timeout: 10000, enableHighAccuracy: true }
+    );
+  }
+
+  /* PHOTOS */
+  function handlePhotos(input) {
+    Array.from(input.files).forEach(function(file) {
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        photos.push({ file: file, dataUrl: e.target.result });
+        renderPhotos();
+      };
+      reader.readAsDataURL(file);
+    });
+    input.value = '';
+  }
+
+  function renderPhotos() {
+    var wrap = document.getElementById('photoPreview');
+    wrap.innerHTML = '';
+    photos.forEach(function(p, i) {
+      var div = document.createElement('div');
+      div.className = 'photo-thumb';
+      div.innerHTML = '<img src="' + p.dataUrl + '">' +
+        '<button class="rm-photo" onclick="rmPhoto(' + i + ')">×</button>';
+      wrap.appendChild(div);
+    });
+  }
+
+  function rmPhoto(i) { photos.splice(i, 1); renderPhotos(); }
+
+  /* COLLECT */
+  function collect() {
+    var equipment = Array.from(document.querySelectorAll('#c3 input[type=checkbox]:checked'))
+      .map(function(c) { return c.value; }).join(', ');
+
+    var safetyItems = ['s1','s2','s3','s4','s5','s6']
+      .filter(function(id) { return document.getElementById(id).checked; })
+      .map(function(id) { return document.querySelector('label[for="' + id + '"]').textContent; })
+      .join(', ');
+
+    return {
+      tourDate:       document.getElementById('fDate').value,
+      siteName:       document.getElementById('fSite').value.trim(),
+      supervisorName: document.getElementById('fSupervisor').value.trim(),
+      tourType:       document.getElementById('fTourType').value,
+      gpsLocation:    document.getElementById('fGPS').value,
+      workers:        getWorkers().join(', '),
+      totalWorkers:   document.getElementById('fTotalWorkers').value,
+      vehicleCount:   document.getElementById('fVehicles').value,
+      equipment:      equipment,
+      equipmentNotes: document.getElementById('fEqNotes').value.trim(),
+      safetyChecked:  safetyItems,
+      safetyLevel:    (document.querySelector('input[name=safetyLvl]:checked') || {}).value || '',
+      safetyNotes:    document.getElementById('fSafetyNotes').value.trim(),
+      projectStatus:  document.getElementById('fStatus').value,
+      mainFindings:   document.getElementById('fFindings').value.trim(),
+      actionItems:    document.getElementById('fActions').value.trim(),
+      urgency:        (document.querySelector('input[name=urgency]:checked') || {}).value || '',
+      generalNotes:   document.getElementById('fNotes').value.trim(),
+      reporterName:   document.getElementById('fReporter').value.trim(),
+      submittedBy:    currentUser ? currentUser.email : '',
+      photoCount:     photos.length
+    };
+  }
+
+  /* REVIEW */
+  function goReview() {
+    var d = collect();
+    if (!d.tourDate || !d.siteName || !d.supervisorName) {
+      alert('נא למלא שדות חובה: תאריך, שם אתר, שם מדריך');
+      document.getElementById('c1').classList.add('open');
+      return;
+    }
+
+    function row(lbl, val) {
+      return '<div class="review-row"><span class="lbl">' + lbl + '</span>' +
+             '<span class="val">' + (val || '—') + '</span></div>';
+    }
+
+    document.getElementById('reviewContent').innerHTML =
+      '<div class="review-card"><h3>📋 פרטי הסיור</h3>' +
+        row('תאריך', d.tourDate) + row('אתר', d.siteName) +
+        row('מדריך', d.supervisorName) + row('סוג סיור', d.tourType) +
+        row('GPS', d.gpsLocation) + '</div>' +
+      '<div class="review-card"><h3>👷 עובדים</h3>' +
+        row('שמות', d.workers || 'לא הוזנו') + row('סה"כ', d.totalWorkers) + '</div>' +
+      '<div class="review-card"><h3>🚛 ציוד</h3>' +
+        row('רכבים', d.vehicleCount) + row('ציוד', d.equipment) + '</div>' +
+      '<div class="review-card"><h3>⛑️ בטיחות</h3>' +
+        row('פריטים תקינים', d.safetyChecked || 'אין') +
+        row('רמת בטיחות', d.safetyLevel) + '</div>' +
+      '<div class="review-card"><h3>📝 ממצאים</h3>' +
+        row('סטטוס', d.projectStatus) + row('ממצאים', d.mainFindings) +
+        row('דחיפות', d.urgency) + '</div>' +
+      '<div class="review-card"><h3>📸 תיעוד</h3>' +
+        row('תמונות', d.photoCount + ' תמונות') + row('מגיש', d.reporterName) + '</div>';
+
+    showScreen('sReview');
+  }
+
+  /* SUBMIT */
+  function doSubmit() {
+    var data      = collect();
+    var photoData = photos.map(function(p) { return p.dataUrl; });
+    setLoading(true);
+    google.script.run
+      .withSuccessHandler(function(r) {
+        setLoading(false);
+        if (r.success) { photos = []; showScreen('sSuccess'); }
+        else alert('שגיאה: ' + (r.message || 'נסה שוב'));
+      })
+      .withFailureHandler(function(e) {
+        setLoading(false);
+        alert('שגיאת שרת: ' + e.message);
+      })
+      .submitTour(data, photoData);
+  }
+
+  /* CLEAR */
+  function confirmClear() {
+    if (!confirm('לנקות את כל הנתונים?')) return;
+    doClear();
+  }
+
+  function doClear() {
+    document.querySelectorAll('#sForm input[type=text], #sForm input[type=number], #sForm textarea, #sForm select')
+      .forEach(function(el) { if (el.id !== 'fReporter') el.value = ''; });
+    document.querySelectorAll('#sForm input[type=checkbox], #sForm input[type=radio]')
+      .forEach(function(el) { el.checked = false; });
+    photos = [];
+    renderPhotos();
+    document.getElementById('workersList').innerHTML =
+      '<div class="worker-row"><input type="text" placeholder="שם עובד" class="wname">' +
+      '<button class="btn-icon btn-rem" onclick="remWorker(this)">−</button></div>';
+    document.getElementById('fDate').value = new Date().toISOString().split('T')[0];
+    window.scrollTo(0, 0);
+  }
+
+  function newForm() { doClear(); showScreen('sForm'); }
+</script>
+</body>
+</html>
