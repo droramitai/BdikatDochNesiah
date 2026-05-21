@@ -83,53 +83,67 @@ if not st.session_state.user:
 
     st.markdown("""
     <style>
-      [data-testid="stSidebar"]  { display:none !important; }
-      [data-testid="stHeader"]   { display:none !important; }
-      [data-testid="stToolbar"]  { display:none !important; }
-      .block-container { padding:0 !important; max-width:100% !important; }
+      /* ─── רקע כחול מלא — בדיוק כמו SO EL ─── */
+      [data-testid="stSidebar"]        { display:none !important; }
+      [data-testid="stHeader"]         { display:none !important; }
+      [data-testid="stToolbar"]        { display:none !important; }
+      [data-testid="stDecoration"]     { display:none !important; }
 
-      /* ─── כותרת כחולה ─── */
+      html, .stApp,
+      [data-testid="stAppViewContainer"],
+      [data-testid="stMain"], .main    { background:#1a73e8 !important; }
+
+      .block-container {
+        padding:0 !important;
+        max-width:100% !important;
+        background:transparent !important;
+      }
+
+      /* ─── אזור כחול עליון ─── */
       .login-top {
-        background:#1a73e8; padding:52px 24px 48px;
+        background:transparent;
+        padding:52px 24px 44px;
         text-align:center; color:white;
       }
       .login-top .icon { font-size:60px; margin-bottom:10px; }
-      .login-top h1   { font-size:28px; font-weight:700; margin-bottom:4px; }
-      .login-top .sub { font-size:16px; opacity:0.88; }
+      .login-top h1   { font-size:28px; font-weight:700; margin-bottom:4px; color:white; }
+      .login-top .sub { font-size:16px; opacity:0.88; color:white; }
 
-      /* ─── כרטיס לבן ─── */
+      /* ─── כרטיס לבן — flex:1 + margin-top:-12px כמו .login-form בSO EL ─── */
       .login-card {
-        background:white; border-radius:24px 24px 0 0;
-        padding:32px 24px 40px; margin-top:-18px; min-height:58vh;
+        background:white;
+        border-radius:24px 24px 0 0;
+        margin-top:-12px;
+        padding:32px 24px 40px;
+        min-height:62vh;
       }
 
-      /* ─── כפתורי בחירה גדולים ─── */
-      div[data-testid="stVerticalBlock"] .stButton.login-btn > button {
-        background:white !important; color:#1a73e8 !important;
-        font-size:18px !important; font-weight:700 !important;
-        padding:18px 12px !important; border-radius:14px !important;
+      /* ─── כפתורי בחירת סוג כניסה ─── */
+      .login-card .stButton > button {
+        font-size:17px !important; font-weight:700 !important;
+        padding:16px 12px !important; border-radius:14px !important;
         border:2px solid #1a73e8 !important;
-        margin-bottom:14px !important;
+        background:white !important; color:#1a73e8 !important;
+        margin-bottom:10px !important;
       }
-      div[data-testid="stVerticalBlock"] .stButton.login-btn > button:hover {
+      .login-card .stButton > button:hover {
         background:#e8f0fe !important;
       }
 
-      /* ─── כפתור כניסה ראשי ─── */
-      .login-card .stButton.primary-btn > button {
+      /* ─── כפתור כניסה (submit) ─── */
+      .login-card .stFormSubmitButton > button {
         background:#1a73e8 !important; color:white !important;
         font-size:18px !important; font-weight:700 !important;
         padding:18px !important; border-radius:12px !important;
-        border:none !important; margin-top:8px !important;
+        border:none !important; margin-top:8px !important; width:100%;
       }
-      .login-card .stButton.primary-btn > button:active { background:#1558b0 !important; }
+      .login-card .stFormSubmitButton > button:active { background:#1558b0 !important; }
 
       /* ─── כפתור חזרה ─── */
-      .login-card .stButton.back-btn > button {
-        background:transparent !important; color:#555 !important;
-        font-size:15px !important; border:1px solid #ccc !important;
+      .login-card .back-btn .stButton > button {
+        background:transparent !important; color:#777 !important;
+        font-size:15px !important; border:1px solid #ddd !important;
         border-radius:10px !important; padding:10px !important;
-        margin-top:4px !important;
       }
 
       /* ─── שדות קלט ─── */
